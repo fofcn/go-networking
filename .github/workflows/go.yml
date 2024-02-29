@@ -22,10 +22,13 @@ jobs:
         go-version: '1.20'
 
     - name: Build
-      run: go build -v ./...
+      run: go build -v .
+         
+  docker:
+    runs-one: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
 
-    # - name: Test
-    #   run: go test -v ./...
     - name: Docker
       run: docker build . -t go-networking:$(date +%s)
   
