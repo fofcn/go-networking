@@ -14,12 +14,10 @@ import (
 )
 
 func main() {
-	tcpServer, _ := network.NewTcpServer()
-	tcpServer.Init()
-	tcpServer.Start()
-	connProcessor := network.ConnProcessor{}
-	tcpServer.AddProcessor(network.CONN, connProcessor)
-	tcpServer.Stop()
+
+	go startTcpServer()
+
+	// tcpServer.Stop()
 
 	ctx := context.Background()
 	if err := envconfig.Process(ctx, &config.ApplicationConfig); err != nil {
@@ -49,4 +47,12 @@ func main() {
 	router.InitRouter(r)
 
 	server.ListenAndServe()
+}
+
+func startTcpServer() {
+	tcpServer, _ := network.NewTcpServer()
+	tcpServer.Init()
+	tcpServer.Start()
+	connProcessor := network.ConnProcessor{}
+	tcpServer.AddProcessor(network.CONN, connProcessor)
 }
