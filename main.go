@@ -15,6 +15,7 @@ import (
 
 func main() {
 	tcpServer, _ := network.NewTcpServer()
+	tcpServer.Init()
 	tcpServer.Start()
 	connProcessor := network.ConnProcessor{}
 	tcpServer.AddProcessor(network.CONN, connProcessor)
