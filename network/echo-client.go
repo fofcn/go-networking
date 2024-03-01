@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func main2() {
+func DemoTcpClient() {
 	var addr string
 	flag.StringVar(&addr, "e", "localhost:4040", "service address endpoint")
 	flag.Parse()

@@ -5,9 +5,31 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
+	"sync"
+
+	"github.com/shettyh/threadpool"
 )
 
-func main1() {
+type acceptHandlerTask struct {
+	listener   *net.TCPListener
+	workerPool *threadpool.ThreadPool
+}
+
+func (task *acceptHandlerTask) Run() {
+	handleAccept(task.listener, task.workerPool)
+}
+
+type connHandlerTask struct {
+	conn *net.TCPConn
+}
+
+func (task *connHandlerTask) Run() {
+	handleConnection(task.conn)
+}
+
+func DemoTcpServer() {
+	var wg sync.WaitGroup
 	var addr string
 	flag.StringVar(&addr, "e", ":4040", "service address endpoint")
 	flag.Parse()
@@ -28,13 +50,16 @@ func main1() {
 	defer listener.Close()
 	fmt.Println("listening at (tcp)", laddr.String())
 
+	bossPool := threadpool.NewThreadPool(2, 2)
+	workerPool := threadpool.NewThreadPool(runtime.NumCPU()*2, 2000)
 	for i := 0; i < 2; i++ {
-		go handleAccept(listener)
+		_ = bossPool.Execute(&acceptHandlerTask{listener: listener, workerPool: workerPool})
 	}
 
+	wg.Wait()
 }
 
-func handleAccept(listener *net.TCPListener) {
+func handleAccept(listener *net.TCPListener, workerPool *threadpool.ThreadPool) {
 	// req/response loop
 	for {
 		// use TCPListener to block and wait for TCP
@@ -42,13 +67,15 @@ func handleAccept(listener *net.TCPListener) {
 		conn, err := listener.AcceptTCP()
 		if err != nil {
 			fmt.Println("failed to accept conn:", err)
-			conn.Close()
+			if conn != nil {
+				conn.Close()
+			}
 			continue
 		}
 
 		fmt.Println("connected to: ", conn.RemoteAddr())
 
-		go handleConnection(conn)
+		workerPool.Execute(&connHandlerTask{conn: conn})
 	}
 }
 

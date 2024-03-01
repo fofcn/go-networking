@@ -3,12 +3,15 @@ module go-networking
 go 1.19
 
 require (
+	github.com/cloudwego/netpoll v0.5.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/sethvargo/go-envconfig v1.0.0
+	github.com/shettyh/threadpool v0.0.0-20200323115144-b99fd8aaa945
 	github.com/stretchr/testify v1.8.3
 )
 
 require (
+	github.com/bytedance/gopkg v0.0.0-20220413063733-65bf48ffb3a7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 )
