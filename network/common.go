@@ -11,6 +11,11 @@ type Addr struct {
 type Conn interface {
 }
 
+type RequestInterceptor interface {
+	BeforeRequest(remoteAddr string, request *Packet)
+	AfterResponse(remoteAddr string, request *Packet, response *Packet)
+}
+
 type Processor interface {
 	Process(conn *Conn, packet *Packet)
 }
@@ -24,9 +29,14 @@ type Lifecycle interface {
 type Server interface {
 	Lifecycle
 	AddProcessor(cmdType CommandType, process Processor)
+	AddInterceptor(requestInterceptor RequestInterceptor)
 }
 
 type Client interface {
 	Lifecycle
-	Send(addr *Addr, packet *Packet)
+	SendSync(addr *Addr, packet *Packet) (*Packet, error)
+	SendAsync(addr *Addr, packet *Packet) error
+	SendOnce(addr *Addr, packet *Packet) error
+	AddProcessor(commandType CommandType, processor Processor)
+	AddInterceptor(requestInterceptor RequestInterceptor)
 }

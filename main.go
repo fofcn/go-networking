@@ -23,15 +23,40 @@ func main() {
 	if err := envconfig.Process(ctx, &config.ApplicationConfig); err != nil {
 		log.Fatal(err)
 	}
-	// to set gin Mode, either you can use env or code
-	// - using env:	export GIN_MODE=release
-	// - using code:	gin.SetMode(gin.ReleaseMode)
-	// if envValue, isExisting := os.LookupEnv("GIN_MODE"); isExisting {
-	// 	gin.SetMode(envValue)
-	// } else {
-	// 	gin.SetMode(gin.DebugMode)
-	// }
 
+	startHttpServer()
+
+}
+
+func startTcpServer() {
+	tcpServer, _ := network.NewTcpServer()
+	err := tcpServer.Init()
+	if err != nil {
+		log.Printf("TCP server init failure. %s", err)
+		return
+	}
+
+	connProcessor := network.ConnProcessor{}
+	tcpServer.AddProcessor(network.CONN, connProcessor)
+
+	err = tcpServer.Start()
+	if err != nil {
+		log.Printf("TCP server init failure. %s", err)
+		return
+	}
+
+	log.Printf("TCP server startup")
+}
+
+func startHttpServer() {
+	// to set gin Mode, either you can use env or code
+	// - using env:    export GIN_MODE=release
+	// - using code:    gin.SetMode(gin.ReleaseMode)
+	// if envValue, isExisting := os.LookupEnv("GIN_MODE"); isExisting {
+	//     gin.SetMode(envValue)
+	// } else {
+	//     gin.SetMode(gin.DebugMode)
+	// }
 	gin.SetMode(config.GetHttpServerConfig().GinMode)
 
 	r := gin.Default()
@@ -47,12 +72,4 @@ func main() {
 	router.InitRouter(r)
 
 	server.ListenAndServe()
-}
-
-func startTcpServer() {
-	tcpServer, _ := network.NewTcpServer()
-	tcpServer.Init()
-	tcpServer.Start()
-	connProcessor := network.ConnProcessor{}
-	tcpServer.AddProcessor(network.CONN, connProcessor)
 }

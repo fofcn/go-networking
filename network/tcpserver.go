@@ -85,6 +85,10 @@ func (tcpServer *TcpServer) AddProcessor(cmdType CommandType, process Processor)
 	tcpServer.processors[cmdType] = &process
 }
 
+func (tcpServer *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor) {
+
+}
+
 type ConnProcessor struct {
 }
 

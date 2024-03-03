@@ -1,6 +1,8 @@
 module go-networking
 
-go 1.19
+go 1.21
+
+toolchain go1.21.6
 
 require (
 	github.com/cloudwego/netpoll v0.5.1
