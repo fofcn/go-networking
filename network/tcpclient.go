@@ -62,7 +62,7 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, packet *Packet) (*Packet
 	reader := conn.Reader()
 	reader.ReadBinary()
 
-	return nil
+	return nil, nil
 }
 
 func (tcpClient *TcpClient) SendAsync(serverAddr string, packet *Packet) error {
