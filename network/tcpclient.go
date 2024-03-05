@@ -1,7 +1,6 @@
 package network
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -49,7 +48,7 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, packet *Packet) (*Packet
 	// encode Packet
 
 	var packetBuf []byte
-	cnt, err := writer.WriteBinary()
+	cnt, err := writer.WriteBinary(nil)
 	if err != nil || cnt != len(packetBuf) {
 		return nil, err
 	}
@@ -60,7 +59,7 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, packet *Packet) (*Packet
 	}
 
 	reader := conn.Reader()
-	reader.ReadBinary()
+	reader.ReadBinary(1)
 
 	return nil, nil
 }
@@ -99,15 +98,15 @@ func (tcpClient *TcpClient) getOrCreateConnection(network string, serverAddr str
 }
 
 func (TcpClient *TcpClient) createConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
+	return nil, nil
+	// conn, err := netpoll.DialConnection(network, serverAddr, timeout)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// conn.AddCloseCallback(func(connection netpoll.Connection) (netpoll.Connection, error) {
+	// 	fmt.Printf("[%v] connection closed\n", connection.RemoteAddr())
+	// 	return nil, nil
+	// })
 
-	conn, err := netpoll.DialConnection(network, serverAddr, timeout)
-	if err != nil {
-		return nil, err
-	}
-	conn.AddCloseCallback(func(connection netpoll.Connection) (netpoll.Connection, error) {
-		fmt.Printf("[%v] connection closed\n", connection.RemoteAddr())
-		return nil, nil
-	})
-
-	return conn, err
+	// return conn, err
 }
