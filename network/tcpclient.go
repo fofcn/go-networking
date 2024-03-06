@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -98,15 +99,14 @@ func (tcpClient *TcpClient) getOrCreateConnection(network string, serverAddr str
 }
 
 func (TcpClient *TcpClient) createConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
-	return nil, nil
-	// conn, err := netpoll.DialConnection(network, serverAddr, timeout)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// conn.AddCloseCallback(func(connection netpoll.Connection) (netpoll.Connection, error) {
-	// 	fmt.Printf("[%v] connection closed\n", connection.RemoteAddr())
-	// 	return nil, nil
-	// })
+	conn, err := netpoll.DialConnection(network, serverAddr, timeout)
+	if err != nil {
+		return nil, err
+	}
+	conn.AddCloseCallback(func(connection netpoll.Connection) error {
+		fmt.Printf("[%v] connection closed\n", connection.RemoteAddr())
+		return nil
+	})
 
-	// return conn, err
+	return conn, err
 }

@@ -32,11 +32,12 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 		},
 	}
 
+	network.AddCodec(CommandA, mockHeader)
+
 	proto := &network.Proto{
-		Version:      0x0001,
-		CmdType:      CommandA,
-		VarintHeader: mockHeader,
-		Payload:      []byte{0x04, 0x05, 0x06},
+		Version: 0x0001,
+		CmdType: CommandA,
+		Payload: []byte{0x04, 0x05, 0x06},
 	}
 
 	data, err := network.Encode(proto)
@@ -44,7 +45,7 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 		t.Fatalf("Expected nil error, got %v", err)
 	}
 
-	expectedData := []byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
+	expectedData := []byte{0x01, 0x00, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
 	if !bytes.Equal(data, expectedData) {
 		t.Errorf("Expected %v, got %v", expectedData, data)
 	}
@@ -58,8 +59,8 @@ func TestEncodeShouldReturnErrorWhenHeaderEncodeFails(t *testing.T) {
 		},
 		DecodeFunc: func([]byte) error { return nil },
 	}
-	proto := &network.Proto{VarintHeader: mockHeader}
-
+	network.AddCodec(CommandA, mockHeader)
+	proto := &network.Proto{}
 	_, err := network.Encode(proto)
 	if err == nil {
 		t.Error("Expected error, got nil")

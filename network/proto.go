@@ -7,11 +7,11 @@ import (
 )
 
 type Proto struct {
-	Version      uint16
-	CmdType      CommandType
-	HeaderLen    uint16
-	VarintHeader VarintHeader
-	Payload      []byte
+	Version   uint16
+	CmdType   CommandType
+	HeaderLen uint16
+	Header    []byte
+	Payload   []byte
 }
 
 type VarintHeader interface {
@@ -27,17 +27,23 @@ func AddCodec(cmdType CommandType, varintHeader VarintHeader) {
 
 func Encode(proto *Proto) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, proto.Version)
-	binary.Write(buf, binary.BigEndian, proto.CmdType)
+
+	encodeVersion(proto, buf)
+	encodeCmdType(proto, buf)
 
 	// 编码SubHeader数据
-	subHeaderData, err := proto.VarintHeader.Encode()
+	subHeaderCodec, err := cmdFactory.getCmdCodec(proto.CmdType)
 	if err != nil {
 		return nil, err
 	}
 
+	// 编码SubHeader数据
+	subHeaderData, err := subHeaderCodec.Encode()
+	if err != nil {
+		return nil, err
+	}
 	proto.HeaderLen = uint16(len(subHeaderData))
-	binary.Write(buf, binary.BigEndian, proto.HeaderLen)
+	encodeHeaderLen(proto, buf)
 	buf.Write(subHeaderData)
 
 	buf.Write(proto.Payload)
@@ -46,7 +52,7 @@ func Encode(proto *Proto) ([]byte, error) {
 }
 
 func Decode(frame []byte) (*Proto, error) {
-	if len(frame) < 5 {
+	if len(frame) < 2 {
 		return nil, errors.New("frame too short to decode")
 	}
 
@@ -54,15 +60,15 @@ func Decode(frame []byte) (*Proto, error) {
 
 	proto := &Proto{}
 
-	if err := binary.Read(buf, binary.BigEndian, &proto.Version); err != nil {
+	if err := decodeVersion(buf, &proto.Version); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Read(buf, binary.BigEndian, &proto.CmdType); err != nil {
+	if err := decodeCmdType(buf, &proto.CmdType); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Read(buf, binary.BigEndian, &proto.HeaderLen); err != nil {
+	if err := decodeHeaderLen(buf, &proto.HeaderLen); err != nil {
 		return nil, err
 	}
 
@@ -75,8 +81,8 @@ func Decode(frame []byte) (*Proto, error) {
 	if err != nil {
 		return nil, err
 	}
-	proto.VarintHeader = varintHeader
-	if err := proto.VarintHeader.Decode(varintHeaderData); err != nil {
+
+	if err := varintHeader.Decode(varintHeaderData); err != nil {
 		return nil, err
 	}
 
@@ -86,6 +92,59 @@ func Decode(frame []byte) (*Proto, error) {
 	}
 
 	return proto, nil
+}
+
+func encodeVersion(proto *Proto, buf *bytes.Buffer) {
+	encodeIntBuf(uint64(proto.Version), buf)
+}
+
+func encodeCmdType(proto *Proto, buf *bytes.Buffer) {
+	encodeIntBuf(uint64(proto.CmdType), buf)
+}
+
+func encodeHeaderLen(proto *Proto, buf *bytes.Buffer) {
+	encodeIntBuf(uint64(proto.HeaderLen), buf)
+}
+
+func encodeIntBuf(variable uint64, buf *bytes.Buffer) {
+	cmdBuf := encodeInteger(variable)
+	buf.Write(cmdBuf)
+}
+
+func decodeVersion(buf *bytes.Reader, version *uint16) error {
+	decVersion, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return errors.New("failed to decode version, invalid bytes")
+	}
+
+	*version = uint16(decVersion)
+	return nil
+}
+
+func decodeCmdType(buf *bytes.Reader, version *CommandType) error {
+	decVersion, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return errors.New("failed to decode command type, invalid bytes")
+	}
+
+	*version = CommandType(decVersion)
+	return nil
+}
+
+func decodeHeaderLen(buf *bytes.Reader, headerLen *uint16) error {
+	decVersion, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return errors.New("failed to decode command type, invalid bytes")
+	}
+
+	*headerLen = uint16(decVersion)
+	return nil
+}
+
+func encodeInteger(variable uint64) []byte {
+	var cmdBuf [binary.MaxVarintLen64]byte
+	encodeLen := binary.PutUvarint(cmdBuf[:], variable)
+	return cmdBuf[:encodeLen]
 }
 
 type commandFactory struct {
@@ -109,7 +168,7 @@ func (cmdFactory *commandFactory) addCmdCodec(cmdType CommandType, header Varint
 func (cmdFactory *commandFactory) getCmdCodec(cmdType CommandType) (VarintHeader, error) {
 	var codec VarintHeader
 	var exists bool
-	if codec, exists = cmdFactory.commandToCodec[cmdType]; exists {
+	if codec, exists = cmdFactory.commandToCodec[cmdType]; !exists {
 		// todo logging
 		return nil, errors.New("Codec for command is not find.")
 	}
