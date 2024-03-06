@@ -74,7 +74,7 @@ func TestDecodeShouldReturnProtoWhenDecodeSuccess(t *testing.T) {
 		},
 	}
 
-	cmdFactory.commandToCodec[CommandA] = mockHeader
+	network.AddCodec(CommandA, mockHeader)
 
 	frame := []byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
 	proto, err := network.Decode(frame)
