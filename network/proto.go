@@ -6,59 +6,64 @@ import (
 	"errors"
 )
 
-type Proto struct {
+type Frame struct {
 	Version   uint16
 	CmdType   CommandType
 	HeaderLen uint16
-	Header    []byte
+	Header    interface{}
 	Payload   []byte
 }
 
-type VarintHeader interface {
+type Codec interface {
 	Encode() ([]byte, error)
-	Decode([]byte) error
+	Decode(data []byte) (Frame, error)
+}
+
+type HeaderCodec interface {
+	Encode(header interface{}) ([]byte, error)
+	Decode(data []byte) (interface{}, error)
 }
 
 var cmdFactory = newCommandFactory()
 
-func AddCodec(cmdType CommandType, varintHeader VarintHeader) {
-	cmdFactory.addCmdCodec(cmdType, varintHeader)
+func AddCodec(cmdType CommandType, headerCodec HeaderCodec) {
+	cmdFactory.addCmdCodec(cmdType, headerCodec)
 }
 
-func Encode(proto *Proto) ([]byte, error) {
+func Encode(frame *Frame) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	encodeVersion(proto, buf)
-	encodeCmdType(proto, buf)
+	encodeVersion(frame, buf)
+	encodeCmdType(frame, buf)
 
 	// 编码SubHeader数据
-	subHeaderCodec, err := cmdFactory.getCmdCodec(proto.CmdType)
+	subHeaderCodec, err := cmdFactory.getCmdCodec(frame.CmdType)
 	if err != nil {
 		return nil, err
 	}
 
 	// 编码SubHeader数据
-	subHeaderData, err := subHeaderCodec.Encode()
+	subHeaderData, err := subHeaderCodec.Encode(frame.Header)
 	if err != nil {
 		return nil, err
 	}
-	proto.HeaderLen = uint16(len(subHeaderData))
-	encodeHeaderLen(proto, buf)
+	frame.HeaderLen = uint16(len(subHeaderData))
+	encodeHeaderLen(frame, buf)
 	buf.Write(subHeaderData)
 
-	buf.Write(proto.Payload)
+	buf.Write(frame.Payload)
 
 	return buf.Bytes(), nil
 }
 
-func Decode(frame []byte) (*Proto, error) {
+func Decode(frame []byte) (*Frame, error) {
 	if len(frame) < 2 {
 		return nil, errors.New("frame too short to decode")
 	}
 
 	buf := bytes.NewReader(frame)
 
-	proto := &Proto{}
+	proto := &Frame{}
 
 	if err := decodeVersion(buf, &proto.Version); err != nil {
 		return nil, err
@@ -77,15 +82,16 @@ func Decode(frame []byte) (*Proto, error) {
 		return nil, errors.New("failed to read the correct subheader length")
 	}
 
-	varintHeader, err := cmdFactory.getCmdCodec(proto.CmdType)
+	headerCodec, err := cmdFactory.getCmdCodec(proto.CmdType)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := varintHeader.Decode(varintHeaderData); err != nil {
+	header, err := headerCodec.Decode(varintHeaderData)
+	if err != nil {
 		return nil, err
 	}
-
+	proto.Header = header
 	proto.Payload = make([]byte, buf.Len())
 	if _, err := buf.Read(proto.Payload); err != nil {
 		return nil, errors.New("failed to read payload")
@@ -94,20 +100,20 @@ func Decode(frame []byte) (*Proto, error) {
 	return proto, nil
 }
 
-func encodeVersion(proto *Proto, buf *bytes.Buffer) {
+func encodeVersion(proto *Frame, buf *bytes.Buffer) {
 	encodeIntBuf(uint64(proto.Version), buf)
 }
 
-func encodeCmdType(proto *Proto, buf *bytes.Buffer) {
+func encodeCmdType(proto *Frame, buf *bytes.Buffer) {
 	encodeIntBuf(uint64(proto.CmdType), buf)
 }
 
-func encodeHeaderLen(proto *Proto, buf *bytes.Buffer) {
+func encodeHeaderLen(proto *Frame, buf *bytes.Buffer) {
 	encodeIntBuf(uint64(proto.HeaderLen), buf)
 }
 
 func encodeIntBuf(variable uint64, buf *bytes.Buffer) {
-	cmdBuf := encodeInteger(variable)
+	cmdBuf := EncodeInteger(variable)
 	buf.Write(cmdBuf)
 }
 
@@ -141,37 +147,45 @@ func decodeHeaderLen(buf *bytes.Reader, headerLen *uint16) error {
 	return nil
 }
 
-func encodeInteger(variable uint64) []byte {
+func EncodeInteger(variable uint64) []byte {
 	var cmdBuf [binary.MaxVarintLen64]byte
 	encodeLen := binary.PutUvarint(cmdBuf[:], variable)
 	return cmdBuf[:encodeLen]
 }
 
+func DecodeInteger(buf *bytes.Reader) (uint64, error) {
+	variable, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return 0, errors.New("failed to decode command type, invalid bytes")
+	}
+	return variable, nil
+}
+
 type commandFactory struct {
-	commandToCodec map[CommandType]VarintHeader
+	commandToCodec map[CommandType]HeaderCodec
 }
 
 func newCommandFactory() *commandFactory {
 	return &commandFactory{
-		commandToCodec: make(map[CommandType]VarintHeader),
+		commandToCodec: make(map[CommandType]HeaderCodec),
 	}
 }
 
-func (cmdFactory *commandFactory) addCmdCodec(cmdType CommandType, header VarintHeader) {
+func (cmdFactory *commandFactory) addCmdCodec(cmdType CommandType, headerCodec HeaderCodec) {
 	if _, exists := cmdFactory.commandToCodec[cmdType]; exists {
 		// todo logging
 	}
 
-	cmdFactory.commandToCodec[cmdType] = header
+	cmdFactory.commandToCodec[cmdType] = headerCodec
 }
 
-func (cmdFactory *commandFactory) getCmdCodec(cmdType CommandType) (VarintHeader, error) {
-	var codec VarintHeader
+func (cmdFactory *commandFactory) getCmdCodec(cmdType CommandType) (HeaderCodec, error) {
+	var headerCodec HeaderCodec
 	var exists bool
-	if codec, exists = cmdFactory.commandToCodec[cmdType]; !exists {
+	if headerCodec, exists = cmdFactory.commandToCodec[cmdType]; !exists {
 		// todo logging
 		return nil, errors.New("Codec for command is not find.")
 	}
 
-	return codec, nil
+	return headerCodec, nil
 }
