@@ -29,7 +29,14 @@ func main() {
 }
 
 func startTcpServer() {
-	tcpServer, _ := network.NewTcpServer()
+	addr := network.Addr{
+		Host: "localhost",
+		Port: "8081",
+	}
+	tcpServer, _ := network.NewTcpServer(&network.TcpServerConfig{
+		Network: "tcp",
+		Addr:    addr,
+	})
 	err := tcpServer.Init()
 	if err != nil {
 		log.Printf("TCP server init failure. %s", err)

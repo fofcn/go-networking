@@ -22,23 +22,20 @@ type TcpServer struct {
 	pollerNum  int
 }
 
-func NewTcpServer() (*TcpServer, error) {
+func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 	tcpServer := TcpServer{
 		processors: make(map[CommandType]*Processor),
-		config:     &TcpServerConfig{},
+		config:     config,
 	}
 	return &tcpServer, nil
 }
 
 func (tcpServer *TcpServer) Init() error {
-	tcpServer.config.Addr = Addr{
-		Host: "localhost",
-		Port: "8081",
-	}
+	fmt.Println("start tcp server")
+
 	tcpServer.config.Network = "tcp"
 	tcpServer.pollerNum = 2
 
-	fmt.Println("TCP Server start")
 	// netpoll.SetNumLoops(tcpServer.pollerNum)
 	runtime.GOMAXPROCS(tcpServer.pollerNum)
 	address := tcpServer.config.Addr.Host + ":" + tcpServer.config.Port
@@ -59,8 +56,9 @@ func (tcpServer *TcpServer) Init() error {
 	}
 
 	tcpServer.eventLoop = eventLoop
-
+	fmt.Println("started tcp server")
 	return nil
+
 }
 
 func (tcpServer *TcpServer) Start() error {
@@ -92,7 +90,7 @@ func (tcpServer *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor
 type ConnProcessor struct {
 }
 
-func (ConnProcessor ConnProcessor) Process(conn *Conn, packet *Packet) {
+func (ConnProcessor ConnProcessor) Process(conn *Conn, frame *Frame) {
 
 }
 

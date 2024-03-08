@@ -59,10 +59,11 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 		Key:    "ABC",
 	}
 	proto := &network.Frame{
-		Version: 1,
-		CmdType: CommandA,
-		Header:  givenConn,
-		Payload: []byte{0x04, 0x05, 0x06},
+		Version:  1,
+		CmdType:  CommandA,
+		Sequence: 1,
+		Header:   givenConn,
+		Payload:  []byte{0x04, 0x05, 0x06},
 	}
 
 	data, err := network.Encode(proto)
@@ -70,7 +71,7 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 		t.Fatalf("Expected nil error, got %v", err)
 	}
 
-	expectedData := []byte{0x01, 0x00, 0x04, 0x03, 0x41, 0x42, 0x43, 0x04, 0x05, 0x06}
+	expectedData := []byte{0x01, 0x00, 0x01, 0x04, 0x03, 0x41, 0x42, 0x43, 0x04, 0x05, 0x06}
 	if !bytes.Equal(data, expectedData) {
 		t.Errorf("Expected %v, got %v", expectedData, data)
 	}
@@ -85,10 +86,10 @@ func TestEncodeShouldReturnErrorWhenHeaderEncodeFails(t *testing.T) {
 	}
 }
 
-func TestDecodeShouldReturnProtoWhenDecodeSuccess(t *testing.T) {
+func TestDecodeShouldReturnFrameWhenDecodeSuccess(t *testing.T) {
 	network.AddCodec(CommandA, &ConnCodec{})
 
-	frame := []byte{0x01, 0x00, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
+	frame := []byte{0x01, 0x00, 0x01, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
 	proto, err := network.Decode(frame)
 	if err != nil {
 		t.Fatalf("Expected nil error, got %v", err)

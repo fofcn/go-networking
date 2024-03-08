@@ -1,8 +1,5 @@
 package network
 
-type Packet struct {
-}
-
 type Addr struct {
 	Host string
 	Port string
@@ -12,12 +9,12 @@ type Conn interface {
 }
 
 type RequestInterceptor interface {
-	BeforeRequest(remoteAddr string, request *Packet)
-	AfterResponse(remoteAddr string, request *Packet, response *Packet)
+	BeforeRequest(remoteAddr string, request *Frame)
+	AfterResponse(remoteAddr string, request *Frame, response *Frame)
 }
 
 type Processor interface {
-	Process(conn *Conn, packet *Packet)
+	Process(conn *Conn, packet *Frame)
 }
 
 type Lifecycle interface {
@@ -34,9 +31,9 @@ type Server interface {
 
 type Client interface {
 	Lifecycle
-	SendSync(addr *Addr, packet *Packet) (*Packet, error)
-	SendAsync(addr *Addr, packet *Packet) error
-	SendOnce(addr *Addr, packet *Packet) error
+	SendSync(addr *Addr, packet *Frame) (*Frame, error)
+	SendAsync(addr *Addr, packet *Frame) error
+	SendOnce(addr *Addr, packet *Frame) error
 	AddProcessor(commandType CommandType, processor Processor)
 	AddInterceptor(requestInterceptor RequestInterceptor)
 }

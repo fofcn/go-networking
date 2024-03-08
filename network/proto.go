@@ -9,6 +9,7 @@ import (
 type Frame struct {
 	Version   uint16
 	CmdType   CommandType
+	Sequence  uint64
 	HeaderLen uint16
 	Header    interface{}
 	Payload   []byte
@@ -35,6 +36,7 @@ func Encode(frame *Frame) ([]byte, error) {
 
 	encodeVersion(frame, buf)
 	encodeCmdType(frame, buf)
+	encodeSequnece(frame, buf)
 
 	// 编码SubHeader数据
 	subHeaderCodec, err := cmdFactory.getCmdCodec(frame.CmdType)
@@ -56,33 +58,37 @@ func Encode(frame *Frame) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func Decode(frame []byte) (*Frame, error) {
-	if len(frame) < 2 {
+func Decode(data []byte) (*Frame, error) {
+	if len(data) < 2 {
 		return nil, errors.New("frame too short to decode")
 	}
 
-	buf := bytes.NewReader(frame)
+	buf := bytes.NewReader(data)
 
-	proto := &Frame{}
+	frame := &Frame{}
 
-	if err := decodeVersion(buf, &proto.Version); err != nil {
+	if err := decodeVersion(buf, &frame.Version); err != nil {
 		return nil, err
 	}
 
-	if err := decodeCmdType(buf, &proto.CmdType); err != nil {
+	if err := decodeCmdType(buf, &frame.CmdType); err != nil {
 		return nil, err
 	}
 
-	if err := decodeHeaderLen(buf, &proto.HeaderLen); err != nil {
+	if err := decodeSequence(buf, &frame.Sequence); err != nil {
 		return nil, err
 	}
 
-	varintHeaderData := make([]byte, proto.HeaderLen)
-	if n, err := buf.Read(varintHeaderData); err != nil || n != int(proto.HeaderLen) {
+	if err := decodeHeaderLen(buf, &frame.HeaderLen); err != nil {
+		return nil, err
+	}
+
+	varintHeaderData := make([]byte, frame.HeaderLen)
+	if n, err := buf.Read(varintHeaderData); err != nil || n != int(frame.HeaderLen) {
 		return nil, errors.New("failed to read the correct subheader length")
 	}
 
-	headerCodec, err := cmdFactory.getCmdCodec(proto.CmdType)
+	headerCodec, err := cmdFactory.getCmdCodec(frame.CmdType)
 	if err != nil {
 		return nil, err
 	}
@@ -91,25 +97,29 @@ func Decode(frame []byte) (*Frame, error) {
 	if err != nil {
 		return nil, err
 	}
-	proto.Header = header
-	proto.Payload = make([]byte, buf.Len())
-	if _, err := buf.Read(proto.Payload); err != nil {
+	frame.Header = header
+	frame.Payload = make([]byte, buf.Len())
+	if _, err := buf.Read(frame.Payload); err != nil {
 		return nil, errors.New("failed to read payload")
 	}
 
-	return proto, nil
+	return frame, nil
 }
 
-func encodeVersion(proto *Frame, buf *bytes.Buffer) {
-	encodeIntBuf(uint64(proto.Version), buf)
+func encodeVersion(frame *Frame, buf *bytes.Buffer) {
+	encodeIntBuf(uint64(frame.Version), buf)
 }
 
-func encodeCmdType(proto *Frame, buf *bytes.Buffer) {
-	encodeIntBuf(uint64(proto.CmdType), buf)
+func encodeCmdType(frame *Frame, buf *bytes.Buffer) {
+	encodeIntBuf(uint64(frame.CmdType), buf)
 }
 
-func encodeHeaderLen(proto *Frame, buf *bytes.Buffer) {
-	encodeIntBuf(uint64(proto.HeaderLen), buf)
+func encodeSequnece(frame *Frame, buf *bytes.Buffer) {
+	encodeIntBuf(frame.Sequence, buf)
+}
+
+func encodeHeaderLen(frame *Frame, buf *bytes.Buffer) {
+	encodeIntBuf(uint64(frame.HeaderLen), buf)
 }
 
 func encodeIntBuf(variable uint64, buf *bytes.Buffer) {
@@ -134,6 +144,16 @@ func decodeCmdType(buf *bytes.Reader, version *CommandType) error {
 	}
 
 	*version = CommandType(decVersion)
+	return nil
+}
+
+func decodeSequence(buf *bytes.Reader, sequence *uint64) error {
+	decSeq, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return errors.New("failed to decode command type, invalid bytes")
+	}
+
+	*sequence = decSeq
 	return nil
 }
 
