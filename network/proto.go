@@ -6,6 +6,11 @@ import (
 	"errors"
 )
 
+type Proto interface {
+	Encode(frame *Frame) ([]byte, error)
+	Decode(data []byte) (*Frame, error)
+}
+
 type Frame struct {
 	Version   uint16
 	CmdType   CommandType
@@ -179,6 +184,21 @@ func DecodeInteger(buf *bytes.Reader) (uint64, error) {
 		return 0, errors.New("failed to decode command type, invalid bytes")
 	}
 	return variable, nil
+}
+
+type LengthValueCodec struct {
+}
+
+func NewLengthValueCodec() *LengthValueCodec {
+	return &LengthValueCodec{}
+}
+
+func (codec *LengthValueCodec) Encode() ([]byte, error) {
+	return nil, nil
+}
+
+func (codec *LengthValueCodec) Decode(data []byte) (*Frame, error) {
+	return nil, nil
 }
 
 type commandFactory struct {
