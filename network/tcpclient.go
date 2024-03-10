@@ -57,6 +57,14 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, e
 	if err != nil {
 		return nil, err
 	}
+	// 创建一个超时上下文
+	// 设置30秒超时
+	// 在完成后释放资源
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	context.WithValue(ctx, "serverAddr", serverAddr)
+	conn.SetOnRequest(tcpClient.handleRequest)
 
 	writer := conn.Writer()
 	// encode frame
@@ -68,11 +76,7 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, e
 	tcpClient.mux.Lock()
 	defer tcpClient.mux.Unlock()
 	sem := semaphore.NewWeighted(1)
-	// 创建一个超时上下文
-	// 设置30秒超时
-	// 在完成后释放资源
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
+
 	respWaiter := &responseWaiter{
 		frame:     nil,
 		countdown: *latch.NewCountDownLatch(),
@@ -152,37 +156,8 @@ func (tcpClient *TcpClient) getOrCreateConnection(network string, serverAddr str
 		return nil, errors.New("connection have not actived after created")
 	}
 
+	conn.SetOnRequest()
 	tcpClient.connTable[serverAddr] = conn
-	go func() {
-		reader := conn.Reader()
-		len, err := binary.ReadUvarint(reader)
-		if err != nil {
-			fmt.Printf("%s", err)
-			if err == io.EOF {
-				conn.Close()
-				delete(tcpClient.connTable, serverAddr)
-			}
-		}
-		data, err := reader.ReadBinary(int(len))
-		if err != nil {
-			fmt.Printf("%s", err)
-			if err == io.EOF {
-				conn.Close()
-				delete(tcpClient.connTable, serverAddr)
-			}
-		}
-		frame, err := Decode(data)
-		if err != nil {
-			fmt.Printf("%s", err)
-		}
-		if _, exists := tcpClient.msgTable[frame.Sequence]; !exists {
-			fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Sequence)
-		} else {
-			respWaiter := tcpClient.msgTable[frame.Sequence]
-			// todo notify waiting client
-			respWaiter.countdown.Done()
-		}
-	}()
 
 	return conn, nil
 }
@@ -198,4 +173,35 @@ func (TcpClient *TcpClient) createConnection(network string, serverAddr string, 
 	})
 
 	return conn, err
+}
+
+func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) (err error) {
+	reader := conn.Reader()
+	len, err := binary.ReadUvarint(reader)
+	if err != nil {
+		fmt.Printf("%s", err)
+		if err == io.EOF {
+			conn.Close()
+			delete(tcpClient.connTable, ctx.Value(""))
+		}
+	}
+	data, err := reader.ReadBinary(int(len))
+	if err != nil {
+		fmt.Printf("%s", err)
+		if err == io.EOF {
+			conn.Close()
+			delete(tcpClient.connTable, ctx.Value("serverAddr"))
+		}
+	}
+	frame, err := Decode(data)
+	if err != nil {
+		fmt.Printf("%s", err)
+	}
+	if _, exists := tcpClient.msgTable[frame.Sequence]; !exists {
+		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Sequence)
+	} else {
+		respWaiter := tcpClient.msgTable[frame.Sequence]
+		// todo notify waiting client
+		respWaiter.countdown.Done()
+	}
 }
