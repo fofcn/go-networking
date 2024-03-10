@@ -69,7 +69,7 @@ func startHttpServer() {
 	r := gin.Default()
 
 	server := &http.Server{
-		Addr:           config.GetHttpServerConfig().Host + ":" + config.GetHttpServerConfig().Port,
+		Addr:           ":8080",
 		Handler:        r,
 		ReadTimeout:    time.Duration(config.GetHttpServerConfig().ReadTimeout) * time.Second,
 		WriteTimeout:   time.Duration(config.GetHttpServerConfig().WriteTimeout) * time.Second,

@@ -28,6 +28,10 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 	frame := &network.Frame{
 		Version: 1,
 		CmdType: CommandA,
+		Header: &Conn{
+			KeyLen: uint32(len("ABC")),
+			Key:    "ABC",
+		},
 		Payload: []byte("Hello world!"),
 	}
 
@@ -41,10 +45,11 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 	tcpClient.Start()
 
 	tcpClient.SendSync(serverAddr, frame)
+
 }
 
 func startTcpServer(sem *semaphore.Weighted) {
-	defer sem.Release(1)
+	sem.Acquire(context.Background(), 1)
 	addr := network.Addr{
 		Host: "127.0.0.1",
 		Port: "8080",
@@ -60,8 +65,10 @@ func startTcpServer(sem *semaphore.Weighted) {
 		return
 	}
 	tcpServer.Init()
-	tcpServer.Start()
-
+	go func() {
+		tcpServer.Start()
+	}()
+	defer sem.Release(1)
 }
 
 type ConnClient struct {
@@ -73,7 +80,7 @@ type ConnCodecClient struct {
 }
 
 func (codec ConnCodecClient) Encode(header interface{}) ([]byte, error) {
-	if conn, ok := header.(Conn); ok {
+	if conn, ok := header.(*Conn); ok {
 		buf := new(bytes.Buffer)
 		buf.Write(network.EncodeInteger(uint64(conn.KeyLen)))
 		buf.Write([]byte(conn.Key))

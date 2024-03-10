@@ -12,6 +12,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 )
 
+require github.com/quintans/toolkit v0.3.5 // indirect
+
 require (
 	github.com/bytedance/gopkg v0.0.0-20220413063733-65bf48ffb3a7 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
