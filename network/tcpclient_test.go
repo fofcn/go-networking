@@ -2,7 +2,6 @@ package network_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -10,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/sync/semaphore"
+	"github.com/quintans/toolkit/latch"
 )
 
 const (
@@ -35,11 +34,12 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 		Payload: []byte("Hello world!"),
 	}
 
-	sem := semaphore.NewWeighted(1)
+	countdownLatch := latch.NewCountDownLatch()
+	countdownLatch.Add(1)
 
-	go startTcpServer(sem)
-	sem.Acquire(context.Background(), 1)
-
+	go startTcpServer(countdownLatch)
+	countdownLatch.Wait()
+	defer countdownLatch.Close()
 	tcpClient := network.NewTcpClient(tcpClientConfig)
 	tcpClient.Init()
 	tcpClient.Start()
@@ -48,8 +48,7 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 
 }
 
-func startTcpServer(sem *semaphore.Weighted) {
-	sem.Acquire(context.Background(), 1)
+func startTcpServer(countdownLatch *latch.CountDownLatch) {
 	addr := network.Addr{
 		Host: "127.0.0.1",
 		Port: "8080",
@@ -68,7 +67,7 @@ func startTcpServer(sem *semaphore.Weighted) {
 	go func() {
 		tcpServer.Start()
 	}()
-	defer sem.Release(1)
+	countdownLatch.Done()
 }
 
 type ConnClient struct {

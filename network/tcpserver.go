@@ -2,7 +2,10 @@ package network
 
 import (
 	"context"
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"runtime"
 	"time"
 
@@ -16,7 +19,7 @@ type TcpServerConfig struct {
 
 type TcpServer struct {
 	config     *TcpServerConfig
-	processors map[CommandType]*Processor
+	processors map[CommandType]Processor
 	listener   netpoll.Listener
 	eventLoop  netpoll.EventLoop
 	pollerNum  int
@@ -24,7 +27,7 @@ type TcpServer struct {
 
 func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 	tcpServer := TcpServer{
-		processors: make(map[CommandType]*Processor),
+		processors: make(map[CommandType]Processor),
 		config:     config,
 	}
 	return &tcpServer, nil
@@ -46,7 +49,7 @@ func (tcpServer *TcpServer) Init() error {
 	tcpServer.listener = listener
 
 	eventLoop, err := netpoll.NewEventLoop(
-		handle,
+		tcpServer.handle,
 		netpoll.WithOnPrepare(prepare),
 		netpoll.WithOnConnect(connect),
 		netpoll.WithReadTimeout(time.Second))
@@ -80,7 +83,7 @@ func (tcpServer *TcpServer) Stop() error {
 
 func (tcpServer *TcpServer) AddProcessor(cmdType CommandType, process Processor) {
 	fmt.Println("Adding processor")
-	tcpServer.processors[cmdType] = &process
+	tcpServer.processors[cmdType] = process
 }
 
 func (tcpServer *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor) {
@@ -109,15 +112,55 @@ func connect(ctx context.Context, connection netpoll.Connection) context.Context
 	return ctx
 }
 
-func handle(ctx context.Context, connection netpoll.Connection) error {
+func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Connection) error {
 	reader, writer := connection.Reader(), connection.Writer()
-	defer reader.Release()
+	len, err := binary.ReadUvarint(reader)
+	if err != nil {
+		fmt.Printf("%s", err)
+		if err == io.EOF {
+			defer reader.Release()
+		}
 
-	msg, _ := reader.ReadString(reader.Len())
-	fmt.Printf("[recv msg] %v\n", msg)
+		return err
+	}
 
-	writer.WriteString(msg)
-	writer.Flush()
+	data, err := reader.ReadBinary(int(len))
+	if err != nil {
+		fmt.Printf("%s", err)
+		if err == io.EOF {
+			defer reader.Release()
+		}
+	}
+
+	frame, err := Decode(data)
+	if err != nil {
+		return err
+	}
+
+	if processor, ok := tcpServer.processors[frame.CmdType]; ok {
+		response, err := processor.Process(&Conn{
+			connection: connection,
+		}, frame)
+		if err != nil {
+			return err
+		}
+
+		responseData, err := Encode(response)
+		if err != nil {
+			return err
+		}
+		_, err = writer.WriteBinary(responseData)
+		if err != nil {
+			return err
+		}
+
+		err = writer.Flush()
+		if err != nil {
+			return err
+		}
+	} else {
+		return errors.New("command processor cannot be found")
+	}
 
 	return nil
 }

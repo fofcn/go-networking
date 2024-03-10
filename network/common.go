@@ -1,11 +1,14 @@
 package network
 
+import "github.com/cloudwego/netpoll"
+
 type Addr struct {
 	Host string
 	Port string
 }
 
-type Conn interface {
+type Conn struct {
+	connection netpoll.Connection
 }
 
 type RequestInterceptor interface {
@@ -14,7 +17,7 @@ type RequestInterceptor interface {
 }
 
 type Processor interface {
-	Process(conn *Conn, packet *Frame)
+	Process(conn *Conn, packet *Frame) (*Frame, error)
 }
 
 type Lifecycle interface {

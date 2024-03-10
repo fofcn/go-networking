@@ -11,7 +11,6 @@ import (
 
 	"github.com/cloudwego/netpoll"
 	"github.com/quintans/toolkit/latch"
-	"golang.org/x/sync/semaphore"
 )
 
 type TcpClientConfig struct {
@@ -49,8 +48,19 @@ func (tcpClient *TcpClient) Start() error {
 }
 
 func (tcpClient *TcpClient) Stop() error {
+	for _, conn := range tcpClient.connTable {
+		if conn.IsActive() {
+			conn.Close()
+		}
+	}
+
+	for _, waiter := range tcpClient.msgTable {
+		waiter.countdown.Close()
+	}
 	return nil
 }
+
+type contextKey string
 
 func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, error) {
 	conn, err := tcpClient.getOrCreateConnection(tcpClient.config.Network, serverAddr, tcpClient.config.Timeout)
@@ -63,7 +73,8 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, e
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
-	context.WithValue(ctx, "serverAddr", serverAddr)
+	var key contextKey = "serverAddr"
+	ctx = context.WithValue(ctx, key, serverAddr)
 	conn.SetOnRequest(tcpClient.handleRequest)
 
 	writer := conn.Writer()
@@ -75,7 +86,6 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, e
 
 	tcpClient.mux.Lock()
 	defer tcpClient.mux.Unlock()
-	sem := semaphore.NewWeighted(1)
 
 	respWaiter := &responseWaiter{
 		frame:     nil,
@@ -106,7 +116,6 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, e
 		// 超时后此分支将执行
 		fmt.Println("Timed out waiting for goroutines to finish")
 	}
-	sem.Acquire(ctx, 1)
 	respWaiter.countdown.WaitWithTimeout(30 * time.Second)
 	defer respWaiter.countdown.Close()
 	if resp, exists := tcpClient.msgTable[frame.Sequence]; exists {
@@ -156,7 +165,6 @@ func (tcpClient *TcpClient) getOrCreateConnection(network string, serverAddr str
 		return nil, errors.New("connection have not actived after created")
 	}
 
-	conn.SetOnRequest()
 	tcpClient.connTable[serverAddr] = conn
 
 	return conn, nil
@@ -182,20 +190,29 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 		fmt.Printf("%s", err)
 		if err == io.EOF {
 			conn.Close()
-			delete(tcpClient.connTable, ctx.Value(""))
+			serevrAddr := ctx.Value("serverAddr")
+			if addr, ok := serevrAddr.(string); ok {
+				delete(tcpClient.connTable, addr)
+			}
 		}
+
+		return err
 	}
 	data, err := reader.ReadBinary(int(len))
 	if err != nil {
 		fmt.Printf("%s", err)
 		if err == io.EOF {
 			conn.Close()
-			delete(tcpClient.connTable, ctx.Value("serverAddr"))
+			serevrAddr := ctx.Value("serverAddr")
+			if addr, ok := serevrAddr.(string); ok {
+				delete(tcpClient.connTable, addr)
+			}
 		}
 	}
 	frame, err := Decode(data)
 	if err != nil {
 		fmt.Printf("%s", err)
+		return err
 	}
 	if _, exists := tcpClient.msgTable[frame.Sequence]; !exists {
 		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Sequence)
@@ -204,4 +221,6 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 		// todo notify waiting client
 		respWaiter.countdown.Done()
 	}
+
+	return nil
 }
