@@ -114,7 +114,7 @@ func connect(ctx context.Context, connection netpoll.Connection) context.Context
 
 func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Connection) error {
 	reader, writer := connection.Reader(), connection.Writer()
-	len, err := binary.ReadUvarint(reader)
+	readLen, err := binary.ReadUvarint(reader)
 	if err != nil {
 		fmt.Printf("%s", err)
 		if err == io.EOF {
@@ -124,7 +124,7 @@ func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Conne
 		return err
 	}
 
-	data, err := reader.ReadBinary(int(len))
+	data, err := reader.ReadBinary(int(readLen))
 	if err != nil {
 		fmt.Printf("%s", err)
 		if err == io.EOF {
@@ -149,6 +149,10 @@ func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Conne
 		if err != nil {
 			return err
 		}
+
+		lenBytes := make([]byte, binary.MaxVarintLen64)
+		actualLen := binary.PutUvarint(lenBytes, uint64(len(responseData)))
+		writer.WriteBinary(lenBytes[:actualLen])
 		_, err = writer.WriteBinary(responseData)
 		if err != nil {
 			return err

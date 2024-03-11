@@ -107,18 +107,19 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, e
 	if err != nil {
 		return nil, err
 	}
-	done := make(chan struct{})
-	select {
-	case <-done:
-		// WaitGroup 完成
-		fmt.Println("All goroutines have finished")
-	case <-time.After(30 * time.Second):
-		// 超时后此分支将执行
-		fmt.Println("Timed out waiting for goroutines to finish")
-	}
+	// done := make(chan struct{})
+	// select {
+	// case <-done:
+	// 	// WaitGroup 完成
+	// 	fmt.Println("All goroutines have finished")
+	// case <-time.After(30 * time.Second):
+	// 	// 超时后此分支将执行
+	// 	fmt.Println("Timed out waiting for goroutines to finish")
+	// }
 	respWaiter.countdown.WaitWithTimeout(30 * time.Second)
 	defer respWaiter.countdown.Close()
 	if resp, exists := tcpClient.msgTable[frame.Sequence]; exists {
+		delete(tcpClient.msgTable, frame.Sequence)
 		return resp.frame, nil
 	}
 
@@ -214,10 +215,12 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 		fmt.Printf("%s", err)
 		return err
 	}
+	fmt.Printf("received frame sequence no.: %d", frame.Sequence)
 	if _, exists := tcpClient.msgTable[frame.Sequence]; !exists {
 		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Sequence)
 	} else {
 		respWaiter := tcpClient.msgTable[frame.Sequence]
+		respWaiter.frame = frame
 		// todo notify waiting client
 		respWaiter.countdown.Done()
 	}

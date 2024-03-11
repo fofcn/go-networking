@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go-networking/network"
+	"log"
 	"testing"
 	"time"
 
@@ -37,15 +38,21 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 	countdownLatch := latch.NewCountDownLatch()
 	countdownLatch.Add(1)
 
-	go startTcpServer(countdownLatch)
+	startTcpServer(countdownLatch)
 	countdownLatch.Wait()
 	defer countdownLatch.Close()
+
 	tcpClient := network.NewTcpClient(tcpClientConfig)
 	tcpClient.Init()
 	tcpClient.Start()
 
-	tcpClient.SendSync(serverAddr, frame)
+	recvFrame, err := tcpClient.SendSync(serverAddr, frame)
+	if err != nil {
+		log.Printf("error occured when sendSync, %s\n", err)
+	}
 
+	log.Printf("send sync success, received command type: %d\n", recvFrame.CmdType)
+	tcpClient.Stop()
 }
 
 func startTcpServer(countdownLatch *latch.CountDownLatch) {
@@ -64,10 +71,11 @@ func startTcpServer(countdownLatch *latch.CountDownLatch) {
 		return
 	}
 	tcpServer.Init()
+	tcpServer.AddProcessor(CommandA, CommandAProcessor{})
 	go func() {
 		tcpServer.Start()
+		countdownLatch.Done()
 	}()
-	countdownLatch.Done()
 }
 
 type ConnClient struct {
@@ -107,4 +115,21 @@ func (codec ConnCodecClient) Decode(data []byte) (interface{}, error) {
 
 	conn.Key = string(keyData)
 	return conn, nil
+}
+
+type CommandAProcessor struct{}
+
+func (cmdProcessor CommandAProcessor) Process(conn *network.Conn, packet *network.Frame) (*network.Frame, error) {
+	log.Println("Command A Process")
+
+	return &network.Frame{
+		Version:  1,
+		CmdType:  CommandA,
+		Sequence: packet.Sequence,
+		Header: &Conn{
+			KeyLen: uint32(len("ABC")),
+			Key:    "ABC",
+		},
+		Payload: []byte("Hello Client"),
+	}, nil
 }

@@ -10,6 +10,7 @@ import (
 
 const (
 	CommandA network.CommandType = iota
+	CommandB
 )
 
 type Conn struct {
