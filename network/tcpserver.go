@@ -93,8 +93,8 @@ func (tcpServer *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor
 type ConnProcessor struct {
 }
 
-func (ConnProcessor ConnProcessor) Process(conn *Conn, frame *Frame) {
-
+func (ConnProcessor ConnProcessor) Process(conn *Conn, frame *Frame) (*Frame, error) {
+	return nil, nil
 }
 
 func prepare(connection netpoll.Connection) context.Context {
