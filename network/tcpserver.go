@@ -132,7 +132,7 @@ func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Conne
 		}
 	}
 
-	frame, err := Decode(data)
+	frame, err := Decode(LengthValueBasedCodec, data)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Conne
 			return err
 		}
 
-		responseData, err := Encode(response)
+		responseData, err := Encode(LengthValueBasedCodec, response)
 		if err != nil {
 			return err
 		}

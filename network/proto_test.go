@@ -53,13 +53,13 @@ func (codec ConnCodec) Decode(data []byte) (interface{}, error) {
 }
 
 func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
-	network.AddCodec(CommandA, &ConnCodec{})
+	network.AddHeaderCodec(CommandA, &ConnCodec{})
 
 	givenConn := Conn{
 		KeyLen: uint32(len("ABC")),
 		Key:    "ABC",
 	}
-	proto := &network.Frame{
+	frame := &network.Frame{
 		Version:  1,
 		CmdType:  CommandA,
 		Sequence: 1,
@@ -67,7 +67,7 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 		Payload:  []byte{0x04, 0x05, 0x06},
 	}
 
-	data, err := network.Encode(proto)
+	data, err := network.Encode(network.LengthValueBasedCodec, frame)
 	if err != nil {
 		t.Fatalf("Expected nil error, got %v", err)
 	}
@@ -79,19 +79,19 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 }
 
 func TestEncodeShouldReturnErrorWhenHeaderEncodeFails(t *testing.T) {
-	network.AddCodec(CommandA, &ConnCodec{})
-	proto := &network.Frame{}
-	_, err := network.Encode(proto)
+	network.AddHeaderCodec(CommandA, &ConnCodec{})
+	frame := &network.Frame{}
+	_, err := network.Encode(network.LengthValueBasedCodec, frame)
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}
 }
 
 func TestDecodeShouldReturnFrameWhenDecodeSuccess(t *testing.T) {
-	network.AddCodec(CommandA, &ConnCodec{})
+	network.AddHeaderCodec(CommandA, &ConnCodec{})
 
 	frame := []byte{0x01, 0x00, 0x01, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
-	proto, err := network.Decode(frame)
+	proto, err := network.Decode(network.LengthValueBasedCodec, frame)
 	if err != nil {
 		t.Fatalf("Expected nil error, got %v", err)
 	}
@@ -111,9 +111,9 @@ func TestDecodeShouldReturnFrameWhenDecodeSuccess(t *testing.T) {
 }
 
 func TestDecodeShouldReturnErrorWhenFrameTooShort(t *testing.T) {
-	shortFrame := []byte{0x01, 0x02}
+	shortData := []byte{0x01, 0x02}
 
-	_, err := network.Decode(shortFrame)
+	_, err := network.Decode(network.LengthValueBasedCodec, shortData)
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}
@@ -122,7 +122,7 @@ func TestDecodeShouldReturnErrorWhenFrameTooShort(t *testing.T) {
 func TestDecodeShouldReturnErrorWhenSubheaderLengthReadFails(t *testing.T) {
 	// 创建一个只包含版本、命令和长度字段的帧，但长度字段的长度超出了剩余的帧大小
 	frame := []byte{0x00, 0x01, 0x00, 0x01, 0x00, 0x04}
-	_, err := network.Decode(frame)
+	_, err := network.Decode(network.LengthValueBasedCodec, frame)
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}

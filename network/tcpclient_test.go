@@ -23,7 +23,7 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 		Timeout: time.Duration(time.Duration.Seconds(60)),
 	}
 
-	network.AddCodec(CommandA, &ConnCodecClient{})
+	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
 
 	frame := &network.Frame{
 		Version: 1,
@@ -46,12 +46,13 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 	tcpClient.Init()
 	tcpClient.Start()
 
-	recvFrame, err := tcpClient.SendSync(serverAddr, frame)
+	recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
 	if err != nil {
 		log.Printf("error occured when sendSync, %s\n", err)
+	} else {
+		log.Printf("send sync success, received command type: %d\n", recvFrame.CmdType)
 	}
 
-	log.Printf("send sync success, received command type: %d\n", recvFrame.CmdType)
 	tcpClient.Stop()
 }
 

@@ -22,7 +22,7 @@ type TcpClient struct {
 	mux       sync.Mutex
 	config    *TcpClientConfig
 	connTable map[string]netpoll.Connection
-	msgTable  map[uint64]*responseWaiter
+	msgTable  map[uint64]ResponseFuture
 }
 
 type responseWaiter struct {
@@ -34,7 +34,7 @@ func NewTcpClient(config *TcpClientConfig) *TcpClient {
 	return &TcpClient{
 		config:    config,
 		connTable: make(map[string]netpoll.Connection),
-		msgTable:  make(map[uint64]*responseWaiter),
+		msgTable:  make(map[uint64]ResponseFuture),
 	}
 }
 
@@ -54,15 +54,15 @@ func (tcpClient *TcpClient) Stop() error {
 		}
 	}
 
-	for _, waiter := range tcpClient.msgTable {
-		waiter.countdown.Close()
+	for _, future := range tcpClient.msgTable {
+		future.Close()
 	}
 	return nil
 }
 
 type contextKey string
 
-func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, error) {
+func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Duration) (*Frame, error) {
 	conn, err := tcpClient.getOrCreateConnection(tcpClient.config.Network, serverAddr, tcpClient.config.Timeout)
 	if err != nil {
 		return nil, err
@@ -79,51 +79,31 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame) (*Frame, e
 
 	writer := conn.Writer()
 	// encode frame
-	bytes, err := Encode(frame)
+	bytes, err := Encode(LengthValueBasedCodec, frame)
 	if err != nil {
 		return nil, err
 	}
 
-	tcpClient.mux.Lock()
-	defer tcpClient.mux.Unlock()
+	rf := NewResponseFuture(frame.Sequence, timeout)
+	defer rf.Close()
+	tcpClient.addSeqFuture(frame.Sequence, rf)
 
-	respWaiter := &responseWaiter{
-		frame:     nil,
-		countdown: *latch.NewCountDownLatch(),
-	}
-	respWaiter.countdown.Add(1)
-	tcpClient.msgTable[frame.Sequence] = respWaiter
-
-	// length-value encode
-	var lenBytes []byte = make([]byte, binary.MaxVarintLen64)
-	encodeLen := binary.PutUvarint(lenBytes, uint64(len(bytes)))
-	writer.WriteBinary(lenBytes[:encodeLen])
 	cnt, err := writer.WriteBinary(bytes)
 	if err != nil || cnt != len(bytes) {
-		return nil, err
+		return nil, errors.New("send failed")
 	}
 
 	err = writer.Flush()
 	if err != nil {
 		return nil, err
 	}
-	// done := make(chan struct{})
-	// select {
-	// case <-done:
-	// 	// WaitGroup 完成
-	// 	fmt.Println("All goroutines have finished")
-	// case <-time.After(30 * time.Second):
-	// 	// 超时后此分支将执行
-	// 	fmt.Println("Timed out waiting for goroutines to finish")
-	// }
-	respWaiter.countdown.WaitWithTimeout(30 * time.Second)
-	defer respWaiter.countdown.Close()
-	if resp, exists := tcpClient.msgTable[frame.Sequence]; exists {
-		delete(tcpClient.msgTable, frame.Sequence)
-		return resp.frame, nil
-	}
 
-	return nil, errors.New("wait response timeout")
+	respFrame, err := rf.Wait()
+	if err != nil {
+		return nil, err
+	}
+	delete(tcpClient.msgTable, frame.Sequence)
+	return respFrame, nil
 }
 
 func (tcpClient *TcpClient) SendAsync(serverAddr string, packet *Frame) error {
@@ -149,7 +129,6 @@ func (tcpClient *TcpClient) getOrCreateConnection(network string, serverAddr str
 	if exists {
 		if conn.IsActive() {
 			return conn, nil
-
 		} else {
 			err := conn.Close()
 			fmt.Printf("connection was not active, close also occured error, please check the error: %s", err)
@@ -176,11 +155,7 @@ func (TcpClient *TcpClient) createConnection(network string, serverAddr string, 
 	if err != nil {
 		return nil, err
 	}
-	conn.AddCloseCallback(func(connection netpoll.Connection) error {
-		fmt.Printf("[%v] connection closed\n", connection.RemoteAddr())
-		return nil
-	})
-
+	conn.AddCloseCallback(TcpClient.closeConnectionCallback)
 	return conn, err
 }
 
@@ -210,7 +185,7 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 			}
 		}
 	}
-	frame, err := Decode(data)
+	frame, err := Decode(LengthValueBasedCodec, data)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return err
@@ -219,11 +194,24 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 	if _, exists := tcpClient.msgTable[frame.Sequence]; !exists {
 		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Sequence)
 	} else {
-		respWaiter := tcpClient.msgTable[frame.Sequence]
-		respWaiter.frame = frame
-		// todo notify waiting client
-		respWaiter.countdown.Done()
+		rf := tcpClient.msgTable[frame.Sequence]
+		rf.Add(frame)
 	}
 
 	return nil
+}
+
+func (tcpClient *TcpClient) closeConnectionCallback(conn netpoll.Connection) error {
+	fmt.Printf("[%v] connection closed\n", conn.RemoteAddr())
+	addr := conn.RemoteAddr()
+	conn.Close()
+	delete(tcpClient.connTable, addr.String())
+	return nil
+}
+
+func (tcpClient *TcpClient) addSeqFuture(seq uint64, rf ResponseFuture) {
+	tcpClient.mux.Lock()
+	defer tcpClient.mux.Unlock()
+
+	tcpClient.msgTable[seq] = rf
 }
