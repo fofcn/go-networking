@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/cloudwego/netpoll"
-	"github.com/quintans/toolkit/latch"
 )
 
 type TcpClientConfig struct {
@@ -22,48 +21,47 @@ type TcpClient struct {
 	mux       sync.Mutex
 	config    *TcpClientConfig
 	connTable map[string]netpoll.Connection
-	msgTable  map[uint64]ResponseFuture
-}
-
-type responseWaiter struct {
-	frame     *Frame
-	countdown latch.CountDownLatch
+	respTable map[uint64]ResponseFuture
+	ticker    *time.Ticker
 }
 
 func NewTcpClient(config *TcpClientConfig) *TcpClient {
 	return &TcpClient{
 		config:    config,
 		connTable: make(map[string]netpoll.Connection),
-		msgTable:  make(map[uint64]ResponseFuture),
+		respTable: make(map[uint64]ResponseFuture),
 	}
 }
 
-func (tcpClient *TcpClient) Init() error {
+func (c *TcpClient) Init() error {
 
 	return nil
 }
 
-func (tcpClient *TcpClient) Start() error {
+func (c *TcpClient) Start() error {
+	c.cleanupResponseFutures()
 	return nil
 }
 
-func (tcpClient *TcpClient) Stop() error {
-	for _, conn := range tcpClient.connTable {
+func (c *TcpClient) Stop() error {
+	for _, conn := range c.connTable {
 		if conn.IsActive() {
 			conn.Close()
 		}
 	}
 
-	for _, future := range tcpClient.msgTable {
+	for _, future := range c.respTable {
 		future.Close()
 	}
+
+	c.ticker.Stop()
 	return nil
 }
 
 type contextKey string
 
-func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Duration) (*Frame, error) {
-	conn, err := tcpClient.getOrCreateConnection(tcpClient.config.Network, serverAddr, tcpClient.config.Timeout)
+func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Duration) (*Frame, error) {
+	conn, err := c.getOrCreateConnection(c.config.Network, serverAddr, c.config.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +73,7 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame, timeout ti
 
 	var key contextKey = "serverAddr"
 	ctx = context.WithValue(ctx, key, serverAddr)
-	conn.SetOnRequest(tcpClient.handleRequest)
+	conn.SetOnRequest(c.handleRequest)
 
 	writer := conn.Writer()
 	// encode frame
@@ -86,7 +84,7 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame, timeout ti
 
 	rf := NewResponseFuture(frame.Sequence, timeout)
 	defer rf.Close()
-	tcpClient.addSeqFuture(frame.Sequence, rf)
+	c.addSeqFuture(frame.Sequence, rf)
 
 	cnt, err := writer.WriteBinary(bytes)
 	if err != nil || cnt != len(bytes) {
@@ -102,41 +100,41 @@ func (tcpClient *TcpClient) SendSync(serverAddr string, frame *Frame, timeout ti
 	if err != nil {
 		return nil, err
 	}
-	delete(tcpClient.msgTable, frame.Sequence)
+	delete(c.respTable, frame.Sequence)
 	return respFrame, nil
 }
 
-func (tcpClient *TcpClient) SendAsync(serverAddr string, packet *Frame) error {
+func (c *TcpClient) SendAsync(serverAddr string, packet *Frame) error {
 	return nil
 }
 
-func (tcpClient *TcpClient) SendOnce(serverAddr string, packet *Frame) error {
+func (c *TcpClient) SendOnce(serverAddr string, packet *Frame) error {
 	return nil
 }
 
-func (tcpClient *TcpClient) AddProcessor(commandType CommandType, processor Processor) {
+func (c *TcpClient) AddProcessor(commandType CommandType, processor Processor) {
 
 }
 
-func (tcpClient *TcpClient) AddInterceptor(requestInterceptor RequestInterceptor) {
+func (c *TcpClient) AddInterceptor(requestInterceptor RequestInterceptor) {
 
 }
 
-func (tcpClient *TcpClient) getOrCreateConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
-	tcpClient.mux.Lock()
-	defer tcpClient.mux.Unlock()
-	conn, exists := tcpClient.connTable[serverAddr]
+func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	conn, exists := c.connTable[serverAddr]
 	if exists {
 		if conn.IsActive() {
 			return conn, nil
 		} else {
 			err := conn.Close()
 			fmt.Printf("connection was not active, close also occured error, please check the error: %s", err)
-			delete(tcpClient.connTable, serverAddr)
+			delete(c.connTable, serverAddr)
 		}
 	}
 
-	conn, err := tcpClient.createConnection(network, serverAddr, timeout)
+	conn, err := c.createConnection(network, serverAddr, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -145,21 +143,21 @@ func (tcpClient *TcpClient) getOrCreateConnection(network string, serverAddr str
 		return nil, errors.New("connection have not actived after created")
 	}
 
-	tcpClient.connTable[serverAddr] = conn
+	c.connTable[serverAddr] = conn
 
 	return conn, nil
 }
 
-func (TcpClient *TcpClient) createConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
+func (c *TcpClient) createConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
 	conn, err := netpoll.DialConnection(network, serverAddr, timeout)
 	if err != nil {
 		return nil, err
 	}
-	conn.AddCloseCallback(TcpClient.closeConnectionCallback)
+	conn.AddCloseCallback(c.closeConnectionCallback)
 	return conn, err
 }
 
-func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) (err error) {
+func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) (err error) {
 	reader := conn.Reader()
 	len, err := binary.ReadUvarint(reader)
 	if err != nil {
@@ -168,7 +166,7 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 			conn.Close()
 			serevrAddr := ctx.Value("serverAddr")
 			if addr, ok := serevrAddr.(string); ok {
-				delete(tcpClient.connTable, addr)
+				delete(c.connTable, addr)
 			}
 		}
 
@@ -181,7 +179,7 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 			conn.Close()
 			serevrAddr := ctx.Value("serverAddr")
 			if addr, ok := serevrAddr.(string); ok {
-				delete(tcpClient.connTable, addr)
+				delete(c.connTable, addr)
 			}
 		}
 	}
@@ -191,27 +189,55 @@ func (tcpClient *TcpClient) handleRequest(ctx context.Context, conn netpoll.Conn
 		return err
 	}
 	fmt.Printf("received frame sequence no.: %d", frame.Sequence)
-	if _, exists := tcpClient.msgTable[frame.Sequence]; !exists {
+	if _, exists := c.respTable[frame.Sequence]; !exists {
 		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Sequence)
 	} else {
-		rf := tcpClient.msgTable[frame.Sequence]
+		rf := c.respTable[frame.Sequence]
 		rf.Add(frame)
 	}
 
 	return nil
 }
 
-func (tcpClient *TcpClient) closeConnectionCallback(conn netpoll.Connection) error {
+func (c *TcpClient) closeConnectionCallback(conn netpoll.Connection) error {
 	fmt.Printf("[%v] connection closed\n", conn.RemoteAddr())
 	addr := conn.RemoteAddr()
 	conn.Close()
-	delete(tcpClient.connTable, addr.String())
+	delete(c.connTable, addr.String())
 	return nil
 }
 
-func (tcpClient *TcpClient) addSeqFuture(seq uint64, rf ResponseFuture) {
-	tcpClient.mux.Lock()
-	defer tcpClient.mux.Unlock()
+func (c *TcpClient) addSeqFuture(seq uint64, rf ResponseFuture) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 
-	tcpClient.msgTable[seq] = rf
+	c.respTable[seq] = rf
+}
+
+func (c *TcpClient) cleanupResponseFutures() {
+	// 设置定时器，每30秒触发一次扫描
+	c.ticker = time.NewTicker(30 * time.Second)
+	go func() {
+		for {
+			<-c.ticker.C
+			c.doCleanupRespFutures()
+		}
+	}()
+}
+
+func (c *TcpClient) doCleanupRespFutures() {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	now := time.Now()
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	for seq, future := range c.respTable {
+		if now.Sub(future.Timestamp()) > 30*time.Second {
+			// 如果ResponseFuture超过30秒钟
+			// 从respTable删除
+			delete(c.respTable, seq)
+			// 关闭CountDownLatch
+			future.Close()
+		}
+	}
 }

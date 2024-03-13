@@ -11,17 +11,20 @@ type ResponseFuture interface {
 	Add(frame *Frame)
 	Wait() (*Frame, error)
 	Close()
+	Timestamp() time.Time
 }
 
 type ResponseFutureI struct {
-	seq       uint64
-	frame     *Frame
-	countdown latch.CountDownLatch
+	seq        uint64
+	frame      *Frame
+	createTime time.Time
+	countdown  latch.CountDownLatch
 }
 
 func NewResponseFuture(seq uint64, timeout time.Duration) *ResponseFutureI {
 	rf := &ResponseFutureI{
-		countdown: *latch.NewCountDownLatch(),
+		countdown:  *latch.NewCountDownLatch(),
+		createTime: time.Now(),
 	}
 	rf.countdown.Add(1)
 	return rf
@@ -42,4 +45,8 @@ func (rf *ResponseFutureI) Wait() (*Frame, error) {
 
 func (rf *ResponseFutureI) Close() {
 	rf.countdown.Close()
+}
+
+func (rf *ResponseFutureI) Timestamp() time.Time {
+	return rf.createTime
 }
