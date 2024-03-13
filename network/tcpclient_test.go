@@ -124,9 +124,9 @@ func (cmdProcessor CommandAProcessor) Process(conn *network.Conn, packet *networ
 	log.Println("Command A Process")
 
 	return &network.Frame{
-		Version:  1,
-		CmdType:  CommandA,
-		Sequence: packet.Sequence,
+		Version: 1,
+		CmdType: CommandA,
+		Seq:     packet.Seq,
 		Header: &Conn{
 			KeyLen: uint32(len("ABC")),
 			Key:    "ABC",

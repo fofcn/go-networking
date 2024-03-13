@@ -60,14 +60,14 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 		Key:    "ABC",
 	}
 	frame := &network.Frame{
-		Version:  1,
-		CmdType:  CommandA,
-		Sequence: 1,
-		Header:   givenConn,
-		Payload:  []byte{0x04, 0x05, 0x06},
+		Version: 1,
+		CmdType: CommandA,
+		Seq:     1,
+		Header:  givenConn,
+		Payload: []byte{0x04, 0x05, 0x06},
 	}
 
-	data, err := network.Encode(network.LengthValueBasedCodec, frame)
+	data, err := network.Encode(network.LVBasedCodec, frame)
 	if err != nil {
 		t.Fatalf("Expected nil error, got %v", err)
 	}
@@ -81,7 +81,7 @@ func TestEncodeShouldReturnBytesWhenEncodeSuccess(t *testing.T) {
 func TestEncodeShouldReturnErrorWhenHeaderEncodeFails(t *testing.T) {
 	network.AddHeaderCodec(CommandA, &ConnCodec{})
 	frame := &network.Frame{}
-	_, err := network.Encode(network.LengthValueBasedCodec, frame)
+	_, err := network.Encode(network.LVBasedCodec, frame)
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}
@@ -91,7 +91,7 @@ func TestDecodeShouldReturnFrameWhenDecodeSuccess(t *testing.T) {
 	network.AddHeaderCodec(CommandA, &ConnCodec{})
 
 	frame := []byte{0x01, 0x00, 0x01, 0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
-	proto, err := network.Decode(network.LengthValueBasedCodec, frame)
+	proto, err := network.Decode(network.LVBasedCodec, frame)
 	if err != nil {
 		t.Fatalf("Expected nil error, got %v", err)
 	}
@@ -113,7 +113,7 @@ func TestDecodeShouldReturnFrameWhenDecodeSuccess(t *testing.T) {
 func TestDecodeShouldReturnErrorWhenFrameTooShort(t *testing.T) {
 	shortData := []byte{0x01, 0x02}
 
-	_, err := network.Decode(network.LengthValueBasedCodec, shortData)
+	_, err := network.Decode(network.LVBasedCodec, shortData)
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}
@@ -122,7 +122,7 @@ func TestDecodeShouldReturnErrorWhenFrameTooShort(t *testing.T) {
 func TestDecodeShouldReturnErrorWhenSubheaderLengthReadFails(t *testing.T) {
 	// 创建一个只包含版本、命令和长度字段的帧，但长度字段的长度超出了剩余的帧大小
 	frame := []byte{0x00, 0x01, 0x00, 0x01, 0x00, 0x04}
-	_, err := network.Decode(network.LengthValueBasedCodec, frame)
+	_, err := network.Decode(network.LVBasedCodec, frame)
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}

@@ -17,22 +17,22 @@ type HeaderCodec interface {
 	Decode(data []byte) (interface{}, error)
 }
 
-type LengthValueCodec struct {
+type LVCodec struct {
 }
 
-func NewLengthValueCodec() *LengthValueCodec {
-	return &LengthValueCodec{}
+func NewLVCodec() *LVCodec {
+	return &LVCodec{}
 }
 
 func AddHeaderCodec(cmdType CommandType, headerCodec HeaderCodec) {
 	cmdFactory.addCmdCodec(cmdType, headerCodec)
 }
 
-func (codec *LengthValueCodec) Encode(frame *Frame) ([]byte, error) {
+func (codec *LVCodec) Encode(frame *Frame) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	encodeVersion(frame, buf)
 	encodeCmdType(frame, buf)
-	encodeSequnece(frame, buf)
+	encodeSeq(frame, buf)
 
 	// 编码SubHeader数据
 	subHeaderCodec, err := cmdFactory.getCmdCodec(frame.CmdType)
@@ -45,8 +45,8 @@ func (codec *LengthValueCodec) Encode(frame *Frame) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	frame.HeaderLen = uint16(len(subHeaderData))
-	encodeHeaderLen(frame, buf)
+	frame.HLen = uint16(len(subHeaderData))
+	encodeHLen(frame, buf)
 	buf.Write(subHeaderData)
 
 	buf.Write(frame.Payload)
@@ -59,7 +59,7 @@ func (codec *LengthValueCodec) Encode(frame *Frame) ([]byte, error) {
 	return finalBuf.Bytes(), nil
 }
 
-func (codec *LengthValueCodec) Decode(data []byte) (*Frame, error) {
+func (codec *LVCodec) Decode(data []byte) (*Frame, error) {
 	if len(data) < 2 {
 		return nil, errors.New("frame too short to decode")
 	}
@@ -76,16 +76,16 @@ func (codec *LengthValueCodec) Decode(data []byte) (*Frame, error) {
 		return nil, err
 	}
 
-	if err := decodeSequence(buf, &frame.Sequence); err != nil {
+	if err := decodeSeq(buf, &frame.Seq); err != nil {
 		return nil, err
 	}
 
-	if err := decodeHeaderLen(buf, &frame.HeaderLen); err != nil {
+	if err := decodeHLen(buf, &frame.HLen); err != nil {
 		return nil, err
 	}
 
-	varintHeaderData := make([]byte, frame.HeaderLen)
-	if n, err := buf.Read(varintHeaderData); err != nil || n != int(frame.HeaderLen) {
+	varintHeaderData := make([]byte, frame.HLen)
+	if n, err := buf.Read(varintHeaderData); err != nil || n != int(frame.HLen) {
 		return nil, errors.New("failed to read the correct subheader length")
 	}
 
@@ -115,12 +115,12 @@ func encodeCmdType(frame *Frame, buf *bytes.Buffer) {
 	encodeIntBuf(uint64(frame.CmdType), buf)
 }
 
-func encodeSequnece(frame *Frame, buf *bytes.Buffer) {
-	encodeIntBuf(frame.Sequence, buf)
+func encodeSeq(frame *Frame, buf *bytes.Buffer) {
+	encodeIntBuf(frame.Seq, buf)
 }
 
-func encodeHeaderLen(frame *Frame, buf *bytes.Buffer) {
-	encodeIntBuf(uint64(frame.HeaderLen), buf)
+func encodeHLen(frame *Frame, buf *bytes.Buffer) {
+	encodeIntBuf(uint64(frame.HLen), buf)
 }
 
 func encodeIntBuf(variable uint64, buf *bytes.Buffer) {
@@ -148,7 +148,7 @@ func decodeCmdType(buf *bytes.Reader, version *CommandType) error {
 	return nil
 }
 
-func decodeSequence(buf *bytes.Reader, sequence *uint64) error {
+func decodeSeq(buf *bytes.Reader, sequence *uint64) error {
 	decSeq, err := binary.ReadUvarint(buf)
 	if err != nil {
 		return errors.New("failed to decode command type, invalid bytes")
@@ -158,7 +158,7 @@ func decodeSequence(buf *bytes.Reader, sequence *uint64) error {
 	return nil
 }
 
-func decodeHeaderLen(buf *bytes.Reader, headerLen *uint16) error {
+func decodeHLen(buf *bytes.Reader, headerLen *uint16) error {
 	decVersion, err := binary.ReadUvarint(buf)
 	if err != nil {
 		return errors.New("failed to decode command type, invalid bytes")

@@ -77,14 +77,14 @@ func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Durat
 
 	writer := conn.Writer()
 	// encode frame
-	bytes, err := Encode(LengthValueBasedCodec, frame)
+	bytes, err := Encode(LVBasedCodec, frame)
 	if err != nil {
 		return nil, err
 	}
 
-	rf := NewResponseFuture(frame.Sequence, timeout)
+	rf := NewResponseFuture(frame.Seq, timeout)
 	defer rf.Close()
-	c.addSeqFuture(frame.Sequence, rf)
+	c.addSeqFuture(frame.Seq, rf)
 
 	cnt, err := writer.WriteBinary(bytes)
 	if err != nil || cnt != len(bytes) {
@@ -100,7 +100,7 @@ func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Durat
 	if err != nil {
 		return nil, err
 	}
-	delete(c.respTable, frame.Sequence)
+	delete(c.respTable, frame.Seq)
 	return respFrame, nil
 }
 
@@ -183,16 +183,16 @@ func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) 
 			}
 		}
 	}
-	frame, err := Decode(LengthValueBasedCodec, data)
+	frame, err := Decode(LVBasedCodec, data)
 	if err != nil {
 		fmt.Printf("%s", err)
 		return err
 	}
-	fmt.Printf("received frame sequence no.: %d", frame.Sequence)
-	if _, exists := c.respTable[frame.Sequence]; !exists {
-		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Sequence)
+	fmt.Printf("received frame sequence no.: %d", frame.Seq)
+	if _, exists := c.respTable[frame.Seq]; !exists {
+		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Seq)
 	} else {
-		rf := c.respTable[frame.Sequence]
+		rf := c.respTable[frame.Seq]
 		rf.Add(frame)
 	}
 
