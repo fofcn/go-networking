@@ -7,22 +7,22 @@ import (
 	"github.com/quintans/toolkit/latch"
 )
 
-type ResponseFuture interface {
+type ResponsePromise interface {
 	Add(frame *Frame)
 	Wait() (*Frame, error)
 	Close()
 	Timestamp() time.Time
 }
 
-type ResponseFutureI struct {
+type ResponsePromiseI struct {
 	seq        uint64
 	frame      *Frame
 	createTime time.Time
 	countdown  latch.CountDownLatch
 }
 
-func NewResponseFuture(seq uint64, timeout time.Duration) *ResponseFutureI {
-	rf := &ResponseFutureI{
+func NewResponseFuture(seq uint64, timeout time.Duration) *ResponsePromiseI {
+	rf := &ResponsePromiseI{
 		countdown:  *latch.NewCountDownLatch(),
 		createTime: time.Now(),
 	}
@@ -30,12 +30,12 @@ func NewResponseFuture(seq uint64, timeout time.Duration) *ResponseFutureI {
 	return rf
 }
 
-func (rf *ResponseFutureI) Add(frame *Frame) {
+func (rf *ResponsePromiseI) Add(frame *Frame) {
 	rf.frame = frame
 	rf.countdown.Done()
 }
 
-func (rf *ResponseFutureI) Wait() (*Frame, error) {
+func (rf *ResponsePromiseI) Wait() (*Frame, error) {
 	isTimeout := rf.countdown.WaitWithTimeout(30 * time.Second)
 	if isTimeout {
 		return nil, fmt.Errorf("waiting for response timeout, seq: %d", rf.seq)
@@ -43,10 +43,10 @@ func (rf *ResponseFutureI) Wait() (*Frame, error) {
 	return rf.frame, nil
 }
 
-func (rf *ResponseFutureI) Close() {
+func (rf *ResponsePromiseI) Close() {
 	rf.countdown.Close()
 }
 
-func (rf *ResponseFutureI) Timestamp() time.Time {
+func (rf *ResponsePromiseI) Timestamp() time.Time {
 	return rf.createTime
 }
