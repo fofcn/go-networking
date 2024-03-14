@@ -12,8 +12,8 @@ type Conn struct {
 }
 
 type RequestInterceptor interface {
-	BeforeRequest(remoteAddr string, request *Frame)
-	AfterResponse(remoteAddr string, request *Frame, response *Frame)
+	OnRequest(remoteAddr string, request *Frame)
+	OnResponse(remoteAddr string, request *Frame, response *Frame)
 }
 
 type Processor interface {

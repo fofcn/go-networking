@@ -6,6 +6,7 @@ import (
 	"go-networking/crypto/aes"
 	"testing"
 
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,7 +43,7 @@ func TestAesDecryptShouldReturnErrorWhenNonceIsIncorrect(t *testing.T) {
 	_, _ = rand.Read(key) // or replace with your actual key
 
 	plaintext := []byte("hello, world")
-	fmt.Printf("%x\n", plaintext)
+	log.Info().Msg(string(plaintext))
 	correctnonce := []byte("987654321012")
 
 	ciphertext, _ := aes.AesEncrypt(plaintext, key, correctnonce)

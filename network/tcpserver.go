@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"time"
 
 	"github.com/cloudwego/netpoll"
@@ -18,38 +17,40 @@ type TcpServerConfig struct {
 }
 
 type TcpServer struct {
-	config     *TcpServerConfig
-	processors map[CommandType]Processor
-	listener   netpoll.Listener
-	eventLoop  netpoll.EventLoop
-	pollerNum  int
+	config       *TcpServerConfig
+	processors   map[CommandType]Processor
+	interceptors []RequestInterceptor
+	listener     netpoll.Listener
+	eventLoop    netpoll.EventLoop
+	pollerNum    int
 }
 
 func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 	tcpServer := TcpServer{
-		processors: make(map[CommandType]Processor),
-		config:     config,
+		processors:   make(map[CommandType]Processor),
+		interceptors: make([]RequestInterceptor, 0),
+		config:       config,
 	}
 	return &tcpServer, nil
 }
 
-func (tcpServer *TcpServer) Init() error {
+func (s *TcpServer) Init() error {
 	fmt.Println("start tcp server")
 
-	tcpServer.config.Network = "tcp"
-	tcpServer.pollerNum = 2
+	s.config.Network = "tcp"
+	s.pollerNum = 2
 
-	// netpoll.SetNumLoops(tcpServer.pollerNum)
-	runtime.GOMAXPROCS(tcpServer.pollerNum)
-	address := tcpServer.config.Addr.Host + ":" + tcpServer.config.Port
-	listener, err := netpoll.CreateListener(tcpServer.config.Network, address)
+	netpoll.SetNumLoops(s.pollerNum)
+
+	address := s.config.Addr.Host + ":" + s.config.Port
+	listener, err := netpoll.CreateListener(s.config.Network, address)
 	if err != nil {
 		return err
 	}
-	tcpServer.listener = listener
+	s.listener = listener
 
 	eventLoop, err := netpoll.NewEventLoop(
-		tcpServer.handle,
+		s.handle,
 		netpoll.WithOnPrepare(prepare),
 		netpoll.WithOnConnect(connect),
 		netpoll.WithReadTimeout(time.Second))
@@ -58,14 +59,14 @@ func (tcpServer *TcpServer) Init() error {
 		return err
 	}
 
-	tcpServer.eventLoop = eventLoop
+	s.eventLoop = eventLoop
 	fmt.Println("started tcp server")
 	return nil
 
 }
 
-func (tcpServer *TcpServer) Start() error {
-	err := tcpServer.eventLoop.Serve(tcpServer.listener)
+func (s *TcpServer) Start() error {
+	err := s.eventLoop.Serve(s.listener)
 	if err != nil {
 		return err
 	}
@@ -73,21 +74,21 @@ func (tcpServer *TcpServer) Start() error {
 	return nil
 }
 
-func (tcpServer *TcpServer) Stop() error {
+func (s *TcpServer) Stop() error {
 	fmt.Println("TCP Server stop")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err := tcpServer.eventLoop.Shutdown(ctx)
+	err := s.eventLoop.Shutdown(ctx)
 	return err
 }
 
-func (tcpServer *TcpServer) AddProcessor(cmdType CommandType, process Processor) {
+func (s *TcpServer) AddProcessor(cmdType CommandType, process Processor) {
 	fmt.Println("Adding processor")
-	tcpServer.processors[cmdType] = process
+	s.processors[cmdType] = process
 }
 
-func (tcpServer *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor) {
-
+func (s *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor) {
+	s.interceptors = append(s.interceptors, requestInterceptor)
 }
 
 type ConnProcessor struct {
@@ -112,7 +113,7 @@ func connect(ctx context.Context, connection netpoll.Connection) context.Context
 	return ctx
 }
 
-func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Connection) error {
+func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) error {
 	reader, writer := connection.Reader(), connection.Writer()
 	readLen, err := binary.ReadUvarint(reader)
 	if err != nil {
@@ -132,17 +133,30 @@ func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Conne
 		}
 	}
 
-	frame, err := Decode(LVBasedCodec, data)
+	req, err := Decode(LVBasedCodec, data)
 	if err != nil {
 		return err
 	}
 
-	if processor, ok := tcpServer.processors[frame.CmdType]; ok {
+	if len(s.interceptors) != 0 {
+		for _, interceptor := range s.interceptors {
+			// todo add client address
+			interceptor.OnRequest("", req)
+		}
+	}
+
+	if processor, ok := s.processors[req.CmdType]; ok {
 		resp, err := processor.Process(&Conn{
 			connection: connection,
-		}, frame)
+		}, req)
 		if err != nil {
 			return err
+		}
+		if len(s.interceptors) != 0 {
+			for _, interceptor := range s.interceptors {
+				// todo add client direction
+				interceptor.OnResponse("", req, resp)
+			}
 		}
 
 		respData, err := Encode(LVBasedCodec, resp)

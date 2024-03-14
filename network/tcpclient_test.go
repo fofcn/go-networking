@@ -36,7 +36,8 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHea
 	tcpClient := startTcpClient()
 	recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
 	assert.Nil(t, err)
-	assert.Equal(t, frame.CmdType, recvFrame.CmdType)
+	assert.Equal(t, frame.Seq, recvFrame.Seq)
+	fmt.Printf("send sequence no: %d, recv sequence no: %d\n", frame.Seq, recvFrame.Seq)
 	tcpClient.Stop()
 }
 
@@ -45,6 +46,34 @@ func TestConnectionFailure(t *testing.T) {
 	invalidServerAddr := "999.999.999.999:99999" // 这是一个无效的地址和端口
 	_, err := tcpClient.SendSync(invalidServerAddr, nil, 30*time.Second)
 	assert.NotNil(t, err)
+	tcpClient.Stop()
+}
+
+func TestHighTrafficStability(t *testing.T) {
+	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
+	startTcpServer()
+	tcpClient := startTcpClient()
+
+	upperLimit := 1000
+	for i := 0; i < upperLimit; i++ {
+		frame := &network.Frame{
+			Version: 1,
+			CmdType: CommandA,
+			Header: &Conn{
+				KeyLen: uint32(len("ABC")),
+				Key:    "ABC",
+			},
+			Payload: []byte("Hello world!"),
+		}
+
+		recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
+		if err != nil {
+			t.Errorf("Error occurred on high traffic: %s\n", err)
+		} else {
+			fmt.Printf("recv frame sequence no: %d", recvFrame.Seq)
+		}
+	}
+
 	tcpClient.Stop()
 }
 

@@ -12,7 +12,11 @@ require (
 	github.com/stretchr/testify v1.9.0
 )
 
-require github.com/quintans/toolkit v0.3.5 // indirect
+require (
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/quintans/toolkit v0.3.5 // indirect
+	github.com/rs/zerolog v1.32.0 // indirect
+)
 
 require (
 	github.com/bytedance/gopkg v0.0.0-20220413063733-65bf48ffb3a7 // indirect
@@ -39,7 +43,7 @@ require (
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sync v0.6.0
-	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

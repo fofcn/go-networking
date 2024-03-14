@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"go-networking/config"
+	"go-networking/log"
 	"go-networking/network"
 	"go-networking/router"
-	"log"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ import (
 )
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	log.InitLogger()
 
 	go startTcpServer()
 
@@ -21,7 +24,7 @@ func main() {
 
 	ctx := context.Background()
 	if err := envconfig.Process(ctx, &config.ApplicationConfig); err != nil {
-		log.Fatal(err)
+		log.ErrorErr(err)
 	}
 
 	startHttpServer()
@@ -39,17 +42,17 @@ func startTcpServer() {
 	})
 	err := tcpServer.Init()
 	if err != nil {
-		log.Printf("TCP server init failure. %s", err)
+		log.ErrorErrMsg(err, "TCP server init failure.")
 		return
 	}
 
 	err = tcpServer.Start()
 	if err != nil {
-		log.Printf("TCP server init failure. %s", err)
+		log.ErrorErrMsg(err, "TCP server init failure.")
 		return
 	}
 
-	log.Printf("TCP server startup")
+	log.Info("TCP server startup")
 }
 
 func startHttpServer() {

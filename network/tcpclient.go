@@ -17,10 +17,15 @@ type TcpClientConfig struct {
 	Timeout time.Duration
 }
 
+type ConnSeq struct {
+	conn    netpoll.Connection
+	seqIncr SafeIncrementer32
+}
+
 type TcpClient struct {
 	mux       sync.Mutex
 	config    *TcpClientConfig
-	connTable map[string]netpoll.Connection
+	connTable map[string]*ConnSeq
 	respTable map[uint64]ResponseFuture
 	ticker    *time.Ticker
 }
@@ -28,7 +33,7 @@ type TcpClient struct {
 func NewTcpClient(config *TcpClientConfig) *TcpClient {
 	return &TcpClient{
 		config:    config,
-		connTable: make(map[string]netpoll.Connection),
+		connTable: make(map[string]*ConnSeq),
 		respTable: make(map[uint64]ResponseFuture),
 	}
 }
@@ -44,9 +49,9 @@ func (c *TcpClient) Start() error {
 }
 
 func (c *TcpClient) Stop() error {
-	for _, conn := range c.connTable {
-		if conn.IsActive() {
-			conn.Close()
+	for _, connIncr := range c.connTable {
+		if connIncr.conn.IsActive() {
+			connIncr.conn.Close()
 		}
 	}
 
@@ -61,10 +66,11 @@ func (c *TcpClient) Stop() error {
 type contextKey string
 
 func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Duration) (*Frame, error) {
-	conn, err := c.getOrCreateConnection(c.config.Network, serverAddr, c.config.Timeout)
+	connSeq, err := c.getOrCreateConnection(c.config.Network, serverAddr, c.config.Timeout)
 	if err != nil {
 		return nil, err
 	}
+	conn := connSeq.conn
 	// 创建一个超时上下文
 	// 设置30秒超时
 	// 在完成后释放资源
@@ -72,11 +78,12 @@ func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Durat
 	defer cancel()
 
 	var key contextKey = "serverAddr"
-	ctx = context.WithValue(ctx, key, serverAddr)
+	context.WithValue(ctx, key, serverAddr)
 	conn.SetOnRequest(c.handleRequest)
 
 	writer := conn.Writer()
 	// encode frame
+	frame.Seq = uint64(connSeq.seqIncr.Increment())
 	bytes, err := Encode(LVBasedCodec, frame)
 	if err != nil {
 		return nil, err
@@ -120,15 +127,15 @@ func (c *TcpClient) AddInterceptor(requestInterceptor RequestInterceptor) {
 
 }
 
-func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
+func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, timeout time.Duration) (*ConnSeq, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	conn, exists := c.connTable[serverAddr]
+	connSeq, exists := c.connTable[serverAddr]
 	if exists {
-		if conn.IsActive() {
-			return conn, nil
+		if connSeq.conn.IsActive() {
+			return connSeq, nil
 		} else {
-			err := conn.Close()
+			err := connSeq.conn.Close()
 			fmt.Printf("connection was not active, close also occured error, please check the error: %s", err)
 			delete(c.connTable, serverAddr)
 		}
@@ -143,9 +150,13 @@ func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, tim
 		return nil, errors.New("connection have not actived after created")
 	}
 
-	c.connTable[serverAddr] = conn
+	connSeq = &ConnSeq{
+		conn:    conn,
+		seqIncr: *NewSafeIncrementer(),
+	}
+	c.connTable[serverAddr] = connSeq
 
-	return conn, nil
+	return connSeq, nil
 }
 
 func (c *TcpClient) createConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
