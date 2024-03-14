@@ -26,7 +26,7 @@ type TcpClient struct {
 	mux       sync.Mutex
 	config    *TcpClientConfig
 	connTable map[string]*ConnSeq
-	respTable map[uint64]ResponsePromise
+	rpTable   map[uint64]ResponsePromise
 	ticker    *time.Ticker
 }
 
@@ -34,7 +34,7 @@ func NewTcpClient(config *TcpClientConfig) *TcpClient {
 	return &TcpClient{
 		config:    config,
 		connTable: make(map[string]*ConnSeq),
-		respTable: make(map[uint64]ResponsePromise),
+		rpTable:   make(map[uint64]ResponsePromise),
 	}
 }
 
@@ -55,7 +55,7 @@ func (c *TcpClient) Stop() error {
 		}
 	}
 
-	for _, future := range c.respTable {
+	for _, future := range c.rpTable {
 		future.Close()
 	}
 
@@ -107,7 +107,7 @@ func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Durat
 	if err != nil {
 		return nil, err
 	}
-	delete(c.respTable, frame.Seq)
+	delete(c.rpTable, frame.Seq)
 	return respFrame, nil
 }
 
@@ -200,10 +200,10 @@ func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) 
 		return err
 	}
 	fmt.Printf("received frame sequence no.: %d", frame.Seq)
-	if _, exists := c.respTable[frame.Seq]; !exists {
+	if _, exists := c.rpTable[frame.Seq]; !exists {
 		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Seq)
 	} else {
-		rp := c.respTable[frame.Seq]
+		rp := c.rpTable[frame.Seq]
 		rp.Add(frame)
 	}
 
@@ -222,7 +222,7 @@ func (c *TcpClient) addSeqFuture(seq uint64, rp ResponsePromise) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	c.respTable[seq] = rp
+	c.rpTable[seq] = rp
 }
 
 func (c *TcpClient) cleanupResponseFutures() {
@@ -242,11 +242,11 @@ func (c *TcpClient) doCleanupRespFutures() {
 	now := time.Now()
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	for seq, future := range c.respTable {
+	for seq, future := range c.rpTable {
 		if now.Sub(future.Timestamp()) > 30*time.Second {
 			// 如果ResponseFuture超过30秒钟
 			// 从respTable删除
-			delete(c.respTable, seq)
+			delete(c.rpTable, seq)
 			// 关闭CountDownLatch
 			future.Close()
 		}
