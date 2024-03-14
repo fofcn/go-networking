@@ -138,22 +138,19 @@ func (tcpServer *TcpServer) handle(ctx context.Context, connection netpoll.Conne
 	}
 
 	if processor, ok := tcpServer.processors[frame.CmdType]; ok {
-		response, err := processor.Process(&Conn{
+		resp, err := processor.Process(&Conn{
 			connection: connection,
 		}, frame)
 		if err != nil {
 			return err
 		}
 
-		responseData, err := Encode(LVBasedCodec, response)
+		respData, err := Encode(LVBasedCodec, resp)
 		if err != nil {
 			return err
 		}
 
-		lenBytes := make([]byte, binary.MaxVarintLen64)
-		actualLen := binary.PutUvarint(lenBytes, uint64(len(responseData)))
-		writer.WriteBinary(lenBytes[:actualLen])
-		_, err = writer.WriteBinary(responseData)
+		_, err = writer.WriteBinary(respData)
 		if err != nil {
 			return err
 		}

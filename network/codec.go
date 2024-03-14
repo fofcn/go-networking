@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 type Codec interface {
@@ -202,7 +203,7 @@ func (cmdFactory *commandFactory) getCmdCodec(cmdType CommandType) (HeaderCodec,
 	var headerCodec HeaderCodec
 	var exists bool
 	if headerCodec, exists = cmdFactory.commandToCodec[cmdType]; !exists {
-		return nil, errors.New("codec for command is not find")
+		return nil, fmt.Errorf("codec for command is not find, cmd type: %d", cmdType)
 	}
 
 	return headerCodec, nil

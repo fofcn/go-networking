@@ -43,9 +43,6 @@ func startTcpServer() {
 		return
 	}
 
-	connProcessor := network.ConnProcessor{}
-	tcpServer.AddProcessor(network.CONN, connProcessor)
-
 	err = tcpServer.Start()
 	if err != nil {
 		log.Printf("TCP server init failure. %s", err)

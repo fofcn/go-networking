@@ -11,19 +11,17 @@ import (
 	"time"
 
 	"github.com/quintans/toolkit/latch"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
 	serverAddr = "127.0.0.1:8080"
 )
 
-func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess(t *testing.T) {
-	tcpClientConfig := &network.TcpClientConfig{
-		Network: "tcp",
-		Timeout: time.Duration(time.Duration.Seconds(60)),
-	}
+func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHeaderAndPayload(t *testing.T) {
 
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
+	startTcpServer()
 
 	frame := &network.Frame{
 		Version: 1,
@@ -35,28 +33,36 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameSuccess
 		Payload: []byte("Hello world!"),
 	}
 
-	countdownLatch := latch.NewCountDownLatch()
-	countdownLatch.Add(1)
+	tcpClient := startTcpClient()
+	recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
+	assert.Nil(t, err)
+	assert.Equal(t, frame.CmdType, recvFrame.CmdType)
+	tcpClient.Stop()
+}
 
-	startTcpServer(countdownLatch)
-	countdownLatch.Wait()
-	defer countdownLatch.Close()
+func TestConnectionFailure(t *testing.T) {
+	tcpClient := startTcpClient()
+	invalidServerAddr := "999.999.999.999:99999" // 这是一个无效的地址和端口
+	_, err := tcpClient.SendSync(invalidServerAddr, nil, 30*time.Second)
+	assert.NotNil(t, err)
+	tcpClient.Stop()
+}
+
+func startTcpClient() *network.TcpClient {
+	tcpClientConfig := &network.TcpClientConfig{
+		Network: "tcp",
+		Timeout: time.Duration(time.Duration.Seconds(60)),
+	}
 
 	tcpClient := network.NewTcpClient(tcpClientConfig)
 	tcpClient.Init()
 	tcpClient.Start()
-
-	recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
-	if err != nil {
-		log.Printf("error occured when sendSync, %s\n", err)
-	} else {
-		log.Printf("send sync success, received command type: %d\n", recvFrame.CmdType)
-	}
-
-	tcpClient.Stop()
+	return tcpClient
 }
 
-func startTcpServer(countdownLatch *latch.CountDownLatch) {
+func startTcpServer() {
+	countdownLatch := latch.NewCountDownLatch()
+	countdownLatch.Add(1)
 	addr := network.Addr{
 		Host: "127.0.0.1",
 		Port: "8080",
@@ -77,6 +83,9 @@ func startTcpServer(countdownLatch *latch.CountDownLatch) {
 		tcpServer.Start()
 		countdownLatch.Done()
 	}()
+
+	countdownLatch.Wait()
+	defer countdownLatch.Close()
 }
 
 type ConnClient struct {
