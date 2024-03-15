@@ -33,7 +33,6 @@ CONN and CONNACK are used for end-to-end encryption. The client will send its DH
 CONN struct and Frame:
 ```go
 type ConnHeader struct {
-    Version    uint16 // Protocol version
     Timestamp  int64  // Timestamp
 }
 

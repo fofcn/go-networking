@@ -1,43 +1,42 @@
 package dh
 
 import (
-	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"errors"
 	"math/big"
 )
 
-// 定义基本参数
-var (
-	prime, _  = new(big.Int).SetString("FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6D7979FB1", 16)
-	generator = big.NewInt(2)
-)
-
-// 生成随机私钥
-func GenPrivateKey() *big.Int {
-	privateKey, _ := rand.Int(rand.Reader, prime)
-	return privateKey
+// Generate DH Key Pair
+func GenDHKP(p, g *big.Int) (*big.Int, *big.Int, error) {
+	privateKey, err := rand.Int(rand.Reader, p)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicKey := new(big.Int).Exp(g, privateKey, p)
+	return privateKey, publicKey, nil
 }
 
-// 通过私钥生成共享密钥
-func GenSharedSecret(privateKey *big.Int) (*big.Int, error) {
-	if privateKey == nil {
-		return nil, errors.New("private key cannot be nil")
-	}
-	return new(big.Int).Exp(generator, privateKey, prime), nil
+func FastGenDHKP() (*big.Int, *big.Int, error) {
+	// mod P
+	p := new(big.Int).SetInt64(23)
+	// base G
+	g := new(big.Int).SetInt64(5)
+	return GenDHKP(p, g)
 }
 
-// 通过私钥和对方公钥计算会话密钥
-func ComputeSecret(theirPublic, myPrivate *big.Int) ([]byte, error) {
-	if theirPublic == nil || myPrivate == nil {
-		return nil, errors.New("public key or private key is nil or both are nil")
-	}
-	secretInt := new(big.Int).Exp(theirPublic, myPrivate, prime)
-	secretBytes := secretInt.Bytes()
+// Generate DH shared key
+func GenDHSharedKey(otherPublicKey, myPrivateKey, p *big.Int) *big.Int {
+	// sharedKey = (otherPublicKey^myPrivateKey) mod p
+	return new(big.Int).Exp(otherPublicKey, myPrivateKey, p)
+}
 
-	mac := hmac.New(sha256.New, secretBytes)
-	mac.Write(secretBytes)
+func FastGenDHSharedKey(otherPublicKey, myPrivateKey *big.Int) *big.Int {
+	p := new(big.Int).SetInt64(23) // mod P
+	return GenDHSharedKey(otherPublicKey, myPrivateKey, p)
+}
 
-	return mac.Sum(nil), nil
+func GenAESKeyFromDHKey(dhKey *big.Int) []byte {
+	dhSharedKeyBytes := dhKey.Bytes()
+	hashedKey := sha256.Sum256(dhSharedKeyBytes)
+	return hashedKey[:]
 }
