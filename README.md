@@ -54,7 +54,8 @@ connFrame := Frame{
 CONNACK struct and frame:
 ```go
 type ConnAckHeader struct {
-    StatusCode uint16 // Status of the connection
+    Id string
+    Timestamp int64
 }
 
 type ConnAckPayload struct {
@@ -213,14 +214,14 @@ FILETRANSFER frame contains filename and path, server gets the metadata of the f
 
 TRANSFER is used for server side to transfer file data to client
 ```go
-FILETRANSFER = {
+type FILETRANSFER struct {
     length uint32,
     filepath string,
 }
 ```
 
 ```go
-FILETRANSFERACK = {
+type FILETRANSFERACK struct {
     fileId uint32,
     fileLen uint64,
     checksum utin32,
@@ -230,7 +231,7 @@ FILETRANSFERACK = {
 ```
 
 ```go
-TRANSFER = {
+type TRANSFER struct {
     fileId uint32,
     seq uint32,
     block []byte,
