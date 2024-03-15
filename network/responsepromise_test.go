@@ -12,7 +12,7 @@ import (
 // TestNewResponseFutureShouldSetCorrectTimestampWhenInitialized 测试 NewResponseFuture 是否在初始化时设置了正确的时间戳
 func TestNewResponseFutureShouldSetCorrectTimestampWhenInitialized(t *testing.T) {
 	seq := uint64(123)
-	rf := network.NewResponseFuture(seq, 30*time.Second)
+	rf := network.NewResponsePromise(seq, 30*time.Second)
 	assert.WithinDuration(t, time.Now(), rf.Timestamp(), time.Millisecond*500, "Timestamp should be within 500 milliseconds of now")
 	rf.Close() // 清理资源
 }
@@ -21,7 +21,7 @@ func TestNewResponseFutureShouldSetCorrectTimestampWhenInitialized(t *testing.T)
 func TestResponseFutureShouldReturnFrameWhenAddIsCalled(t *testing.T) {
 	seq := uint64(123)
 	frame := &network.Frame{Seq: seq}
-	rf := network.NewResponseFuture(seq, 30*time.Second)
+	rf := network.NewResponsePromise(seq, 30*time.Second)
 
 	go func() {
 		rf.Add(frame)
@@ -36,7 +36,7 @@ func TestResponseFutureShouldReturnFrameWhenAddIsCalled(t *testing.T) {
 // TestResponseFutureShouldReturnErrorWhenWaitTimeout 测试 Wait 是否在超时的情况下返回错误
 func TestResponseFutureShouldReturnErrorWhenWaitTimeout(t *testing.T) {
 	seq := uint64(123)
-	rf := network.NewResponseFuture(seq, 50*time.Millisecond) // 使用较短的超时时间以便测试
+	rf := network.NewResponsePromise(seq, 50*time.Millisecond) // 使用较短的超时时间以便测试
 
 	resultFrame, err := rf.Wait()
 	assert.Nil(t, resultFrame, "The result frame should be nil on timeout")
@@ -49,7 +49,7 @@ func TestResponseFutureShouldReturnErrorWhenWaitTimeout(t *testing.T) {
 func TestResponseFutureShouldSupportMultipleConcurrentWaits(t *testing.T) {
 	seq := uint64(123)
 	frame := &network.Frame{Seq: seq}
-	rf := network.NewResponseFuture(seq, 5*time.Second)
+	rf := network.NewResponsePromise(seq, 5*time.Second)
 
 	var wg sync.WaitGroup
 	wg.Add(2)

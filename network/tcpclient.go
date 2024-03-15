@@ -89,7 +89,7 @@ func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Durat
 		return nil, err
 	}
 
-	rp := NewResponseFuture(frame.Seq, timeout)
+	rp := NewResponsePromise(frame.Seq, timeout)
 	defer rp.Close()
 	c.addSeqFuture(frame.Seq, rp)
 

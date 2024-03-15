@@ -1,6 +1,6 @@
 package network
 
-type CommandType int32
+type CommandType uint32
 
 const (
 	CONN CommandType = iota

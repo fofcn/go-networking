@@ -21,7 +21,7 @@ type ResponsePromiseI struct {
 	countdown  latch.CountDownLatch
 }
 
-func NewResponseFuture(seq uint64, timeout time.Duration) *ResponsePromiseI {
+func NewResponsePromise(seq uint64, timeout time.Duration) *ResponsePromiseI {
 	rf := &ResponsePromiseI{
 		countdown:  *latch.NewCountDownLatch(),
 		createTime: time.Now(),
