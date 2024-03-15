@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/quintans/toolkit v0.3.5 // indirect
 	github.com/rs/zerolog v1.32.0 // indirect

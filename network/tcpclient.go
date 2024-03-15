@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"sync"
 	"time"
 
@@ -17,24 +18,27 @@ type TcpClientConfig struct {
 	Timeout time.Duration
 }
 
-type ConnSeq struct {
+type HostConn struct {
+	id      string
 	conn    netpoll.Connection
 	seqIncr SafeIncrementer32
+	key     string
+	priKey  big.Int
 }
 
 type TcpClient struct {
-	mux       sync.Mutex
-	config    *TcpClientConfig
-	connTable map[string]*ConnSeq
-	rpTable   map[uint64]ResponsePromise
-	ticker    *time.Ticker
+	mux           sync.Mutex
+	config        *TcpClientConfig
+	hostConnTable map[string]*HostConn
+	rpTable       map[uint64]ResponsePromise
+	ticker        *time.Ticker
 }
 
 func NewTcpClient(config *TcpClientConfig) *TcpClient {
 	return &TcpClient{
-		config:    config,
-		connTable: make(map[string]*ConnSeq),
-		rpTable:   make(map[uint64]ResponsePromise),
+		config:        config,
+		hostConnTable: make(map[string]*HostConn),
+		rpTable:       make(map[uint64]ResponsePromise),
 	}
 }
 
@@ -49,7 +53,7 @@ func (c *TcpClient) Start() error {
 }
 
 func (c *TcpClient) Stop() error {
-	for _, connIncr := range c.connTable {
+	for _, connIncr := range c.hostConnTable {
 		if connIncr.conn.IsActive() {
 			connIncr.conn.Close()
 		}
@@ -127,17 +131,17 @@ func (c *TcpClient) AddInterceptor(requestInterceptor RequestInterceptor) {
 
 }
 
-func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, timeout time.Duration) (*ConnSeq, error) {
+func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, timeout time.Duration) (*HostConn, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	connSeq, exists := c.connTable[serverAddr]
+	connSeq, exists := c.hostConnTable[serverAddr]
 	if exists {
 		if connSeq.conn.IsActive() {
 			return connSeq, nil
 		} else {
 			err := connSeq.conn.Close()
 			fmt.Printf("connection was not active, close also occured error, please check the error: %s", err)
-			delete(c.connTable, serverAddr)
+			delete(c.hostConnTable, serverAddr)
 		}
 	}
 
@@ -150,11 +154,11 @@ func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, tim
 		return nil, errors.New("connection have not actived after created")
 	}
 
-	connSeq = &ConnSeq{
+	connSeq = &HostConn{
 		conn:    conn,
 		seqIncr: *NewSafeIncrementer(),
 	}
-	c.connTable[serverAddr] = connSeq
+	c.hostConnTable[serverAddr] = connSeq
 
 	return connSeq, nil
 }
@@ -177,7 +181,7 @@ func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) 
 			conn.Close()
 			serevrAddr := ctx.Value("serverAddr")
 			if addr, ok := serevrAddr.(string); ok {
-				delete(c.connTable, addr)
+				delete(c.hostConnTable, addr)
 			}
 		}
 
@@ -190,7 +194,7 @@ func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) 
 			conn.Close()
 			serevrAddr := ctx.Value("serverAddr")
 			if addr, ok := serevrAddr.(string); ok {
-				delete(c.connTable, addr)
+				delete(c.hostConnTable, addr)
 			}
 		}
 	}
@@ -214,7 +218,7 @@ func (c *TcpClient) closeConnectionCallback(conn netpoll.Connection) error {
 	fmt.Printf("[%v] connection closed\n", conn.RemoteAddr())
 	addr := conn.RemoteAddr()
 	conn.Close()
-	delete(c.connTable, addr.String())
+	delete(c.hostConnTable, addr.String())
 	return nil
 }
 

@@ -1,12 +1,27 @@
 package network
 
+type VersionType uint16
+
+const (
+	VERSION_1 VersionType = iota + 1
+)
+
 type Frame struct {
-	Version uint16
+	Version VersionType
 	CmdType CommandType
 	Seq     uint64
 	HLen    uint16
 	Header  interface{}
 	Payload []byte
+}
+
+func NewFrame(ver VersionType, cmdType CommandType, h interface{}, payload []byte) *Frame {
+	return &Frame{
+		Version: ver,
+		CmdType: cmdType,
+		Header:  h,
+		Payload: payload,
+	}
 }
 
 const (

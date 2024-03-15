@@ -11,6 +11,11 @@ import (
 	"github.com/cloudwego/netpoll"
 )
 
+type ConnKey struct {
+	Conn *Conn
+	Key  string
+}
+
 type TcpServerConfig struct {
 	Network string
 	Addr
@@ -23,6 +28,11 @@ type TcpServer struct {
 	listener     netpoll.Listener
 	eventLoop    netpoll.EventLoop
 	pollerNum    int
+	connKeyTable map[string]*ConnKey
+}
+
+func (s *TcpServer) AddConnKey(Id string, connKey *ConnKey) {
+	s.connKeyTable[Id] = connKey
 }
 
 func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
@@ -30,6 +40,7 @@ func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 		processors:   make(map[CommandType]Processor),
 		interceptors: make([]RequestInterceptor, 0),
 		config:       config,
+		connKeyTable: make(map[string]*ConnKey),
 	}
 	return &tcpServer, nil
 }
