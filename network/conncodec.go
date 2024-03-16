@@ -8,7 +8,7 @@ import (
 
 type ConnHeaderCodec struct{}
 
-func (codec *ConnHeaderCodec) EncodeHeader(header interface{}) ([]byte, error) {
+func (codec *ConnHeaderCodec) Encode(header interface{}) ([]byte, error) {
 	connHeader, ok := header.(*ConnHeader)
 	if !ok {
 		return nil, errors.New("invalid header type")
@@ -24,13 +24,7 @@ func (codec *ConnHeaderCodec) EncodeHeader(header interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (codec *ConnHeaderCodec) DecodeHeader(data []byte) (interface{}, error) {
-	// UUID strings are 36 characters and timestamps are 8 bytes.
-	minLength := 36 + 8
-	if len(data) < minLength {
-		return nil, errors.New("invalid header data length")
-	}
-
+func (codec *ConnHeaderCodec) Decode(data []byte) (interface{}, error) {
 	// Read timestamp
 	timestamp := int64(binary.BigEndian.Uint64(data[:8]))
 
@@ -41,7 +35,7 @@ func (codec *ConnHeaderCodec) DecodeHeader(data []byte) (interface{}, error) {
 
 type ConnAckHeaderCodec struct{}
 
-func (codec *ConnAckHeaderCodec) EncodeHeader(header interface{}) ([]byte, error) {
+func (codec *ConnAckHeaderCodec) Encode(header interface{}) ([]byte, error) {
 	connAckHeader, ok := header.(*ConnAckHeader)
 	if !ok {
 		return nil, errors.New("invalid header type")
@@ -51,28 +45,23 @@ func (codec *ConnAckHeaderCodec) EncodeHeader(header interface{}) ([]byte, error
 	// Combined with the 8-byte timestamp, the total buffer length is 36 + 8.
 	buf := new(bytes.Buffer)
 
-	// Write timestamp (8 bytes)
-	binary.Write(buf, binary.BigEndian, connAckHeader.Timestamp)
-
 	// Write UUID string (no fixed byte length)
 	buf.WriteString(connAckHeader.Id)
+
+	// Write timestamp (8 bytes)
+	binary.Write(buf, binary.BigEndian, connAckHeader.Timestamp)
 
 	return buf.Bytes(), nil
 }
 
-func (codec *ConnAckHeaderCodec) DecodeHeader(data []byte) (interface{}, error) {
-	// UUID strings are 36 characters and timestamps are 8 bytes.
-	minLength := 36 + 8
-	if len(data) < minLength {
-		return nil, errors.New("invalid header data length")
-	}
-
-	// Read timestamp
-	timestamp := int64(binary.BigEndian.Uint64(data[:8]))
+func (codec *ConnAckHeaderCodec) Decode(data []byte) (interface{}, error) {
 
 	// Read UUID
 	// The UUID is the rest of the buffer after the timestamp.
 	id := string(data[8:])
+
+	// Read timestamp
+	timestamp := int64(binary.BigEndian.Uint64(data[:8]))
 
 	return &ConnAckHeader{
 		Id:        id,

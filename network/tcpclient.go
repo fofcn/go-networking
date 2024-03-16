@@ -19,11 +19,12 @@ type TcpClientConfig struct {
 }
 
 type HostConn struct {
-	id      string
-	conn    netpoll.Connection
-	seqIncr SafeIncrementer32
-	key     string
-	priKey  big.Int
+	id        string
+	conn      netpoll.Connection
+	seqIncr   SafeIncrementer32
+	key       string
+	priKey    big.Int
+	timestamp int64
 }
 
 type TcpClient struct {
@@ -95,7 +96,7 @@ func (c *TcpClient) SendSync(serverAddr string, frame *Frame, timeout time.Durat
 
 	rp := NewResponsePromise(frame.Seq, timeout)
 	defer rp.Close()
-	c.addSeqFuture(frame.Seq, rp)
+	c.addSeqPromise(frame.Seq, rp)
 
 	cnt, err := writer.WriteBinary(bytes)
 	if err != nil || cnt != len(bytes) {
@@ -222,7 +223,7 @@ func (c *TcpClient) closeConnectionCallback(conn netpoll.Connection) error {
 	return nil
 }
 
-func (c *TcpClient) addSeqFuture(seq uint64, rp ResponsePromise) {
+func (c *TcpClient) addSeqPromise(seq uint64, rp ResponsePromise) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -235,12 +236,12 @@ func (c *TcpClient) cleanupResponseFutures() {
 	go func() {
 		for {
 			<-c.ticker.C
-			c.doCleanupRespFutures()
+			c.doCleanupRespPromise()
 		}
 	}()
 }
 
-func (c *TcpClient) doCleanupRespFutures() {
+func (c *TcpClient) doCleanupRespPromise() {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	now := time.Now()

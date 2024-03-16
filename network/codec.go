@@ -129,13 +129,13 @@ func encodeIntBuf(variable uint64, buf *bytes.Buffer) {
 	buf.Write(cmdBuf)
 }
 
-func decodeVersion(buf *bytes.Reader, version *uint16) error {
+func decodeVersion(buf *bytes.Reader, version *VersionType) error {
 	decVersion, err := binary.ReadUvarint(buf)
 	if err != nil {
 		return errors.New("failed to decode version, invalid bytes")
 	}
 
-	*version = uint16(decVersion)
+	*version = VersionType(decVersion)
 	return nil
 }
 

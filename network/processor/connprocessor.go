@@ -3,17 +3,14 @@ package processor
 import (
 	"go-networking/crypto/dh"
 	"go-networking/network"
+	"go-networking/network/util"
 	"math/big"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // 用于保护connTable的读写锁
 var connTableLock sync.RWMutex
-var srvPrivateKey, srvPublicKey, _ = dh.FastGenDHKP()
 
 type ConnProcessor struct {
 	TcpServer *network.TcpServer
@@ -33,32 +30,35 @@ func (cp *ConnProcessor) Process(conn *network.Conn, frame *network.Frame) (*net
 	// 解析客户端DH公钥
 	clientDHKey := new(big.Int).SetBytes(frame.Payload)
 
+	var srvPrivateKey, srvPublicKey, _ = dh.FastGenDHKP()
 	// 计算共享秘钥
 	sharedKey := dh.FastGenDHSharedKey(clientDHKey, srvPrivateKey)
 
 	// 从共享秘钥生成AES密钥
 	aesKey := dh.GenAESKeyFromDHKey(sharedKey)
 
-	// 假设我们有一个方法来生成连接ID并确保其唯一性
-	connID := GetUUID()
+	// 生成UUID
+	connID := util.GetUUIDNoDash()
 
 	// 添加连接到连接表
 	connTableLock.Lock()
 	// 记录aesKey到连接上下文中，用于之后数据的加解密
 	cp.TcpServer.AddConnKey(connID, &network.ConnKey{
-		Conn: conn,
-		Key:  string(aesKey),
+		Conn:      conn,
+		Key:       string(aesKey),
+		Timestamp: time.Now().Unix(),
 	})
 	connTableLock.Unlock()
 
 	// 准备回复客户端的数据包
 	respHeader := &network.ConnAckHeader{
-		Id:        connID, // 此处需要将connID从uint64转换为字符串，如使用strconv.Itoa
+		// 此处需要将connID从uint64转换为字符串，如使用strconv.Itoa
+		Id:        connID,
 		Timestamp: time.Now().Unix(),
 	}
 
 	responseFrame := &network.Frame{
-		Version: uint16(network.VERSION_1),
+		Version: network.VERSION_1,
 		CmdType: network.CONNACK,
 		Seq:     frame.Seq,
 		Header:  respHeader,
@@ -66,9 +66,4 @@ func (cp *ConnProcessor) Process(conn *network.Conn, frame *network.Frame) (*net
 	}
 
 	return responseFrame, nil
-}
-
-func GetUUID() string {
-	// 生成UUID并去掉所有短横线
-	return strings.ReplaceAll(uuid.New().String(), "-", "")
 }

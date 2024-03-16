@@ -21,7 +21,7 @@ const (
 func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHeaderAndPayload(t *testing.T) {
 
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
-	startTcpServer()
+	StartTcpServer()
 
 	frame := &network.Frame{
 		Version: 1,
@@ -33,7 +33,7 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHea
 		Payload: []byte("Hello world!"),
 	}
 
-	tcpClient := startTcpClient()
+	tcpClient := StartTcpClient()
 	recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
 	assert.Nil(t, err)
 	assert.Equal(t, frame.Seq, recvFrame.Seq)
@@ -42,7 +42,7 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHea
 }
 
 func TestConnectionFailure(t *testing.T) {
-	tcpClient := startTcpClient()
+	tcpClient := StartTcpClient()
 	invalidServerAddr := "999.999.999.999:99999" // 这是一个无效的地址和端口
 	_, err := tcpClient.SendSync(invalidServerAddr, nil, 30*time.Second)
 	assert.NotNil(t, err)
@@ -51,8 +51,8 @@ func TestConnectionFailure(t *testing.T) {
 
 func TestHighTrafficStability(t *testing.T) {
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
-	startTcpServer()
-	tcpClient := startTcpClient()
+	StartTcpServer()
+	tcpClient := StartTcpClient()
 
 	upperLimit := 1000
 	for i := 0; i < upperLimit; i++ {
@@ -77,7 +77,7 @@ func TestHighTrafficStability(t *testing.T) {
 	tcpClient.Stop()
 }
 
-func startTcpClient() *network.TcpClient {
+func StartTcpClient() *network.TcpClient {
 	tcpClientConfig := &network.TcpClientConfig{
 		Network: "tcp",
 		Timeout: time.Duration(time.Duration.Seconds(60)),
@@ -89,7 +89,7 @@ func startTcpClient() *network.TcpClient {
 	return tcpClient
 }
 
-func startTcpServer() {
+func StartTcpServer() *network.TcpServer {
 	countdownLatch := latch.NewCountDownLatch()
 	countdownLatch.Add(1)
 	addr := network.Addr{
@@ -104,7 +104,7 @@ func startTcpServer() {
 	tcpServer, err := network.NewTcpServer(tcpServerConfig)
 	if err != nil {
 		fmt.Println("failed to create tcp server")
-		return
+		return nil
 	}
 	tcpServer.Init()
 	tcpServer.AddProcessor(CommandA, CommandAProcessor{})
@@ -115,6 +115,8 @@ func startTcpServer() {
 
 	countdownLatch.Wait()
 	defer countdownLatch.Close()
+
+	return tcpServer
 }
 
 type ConnClient struct {

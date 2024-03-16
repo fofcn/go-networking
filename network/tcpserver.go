@@ -12,8 +12,9 @@ import (
 )
 
 type ConnKey struct {
-	Conn *Conn
-	Key  string
+	Conn      *Conn
+	Key       string
+	Timestamp int64
 }
 
 type TcpServerConfig struct {
@@ -100,13 +101,6 @@ func (s *TcpServer) AddProcessor(cmdType CommandType, process Processor) {
 
 func (s *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor) {
 	s.interceptors = append(s.interceptors, requestInterceptor)
-}
-
-type ConnProcessor struct {
-}
-
-func (ConnProcessor ConnProcessor) Process(conn *Conn, frame *Frame) (*Frame, error) {
-	return nil, nil
 }
 
 func prepare(connection netpoll.Connection) context.Context {
