@@ -51,7 +51,7 @@ func (c *ClientApi) SendConn(tcpClient network.TcpClient) error {
 	if err != nil {
 		return err
 	}
-	req := network.NewFrame(network.VERSION_1, network.CONN,
+	req := network.NewFrame(network.CONN,
 		&network.ConnHeader{
 			Timestamp: time.Now().Unix(),
 		}, cliPublicKey.Bytes(),

@@ -26,7 +26,7 @@ func TestProcess_ShouldReturnSuccess_WhenConnIsOK(t *testing.T) {
 	connHeader := &network.ConnHeader{
 		Timestamp: time.Now().Unix(),
 	}
-	req := network.NewFrame(network.VERSION_1, network.CONN, connHeader, new(big.Int).SetInt64(1024).Bytes())
+	req := network.NewFrame(network.CONN, connHeader, new(big.Int).SetInt64(1024).Bytes())
 	resp, err := c.SendSync(serverAddr, req, 20*time.Second)
 	assert.Nil(t, err)
 	assert.NotNil(t, resp.Payload)

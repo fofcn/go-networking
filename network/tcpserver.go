@@ -24,6 +24,7 @@ type TcpServer struct {
 	eventLoop    netpoll.EventLoop
 	pollerNum    int
 	connKeyTable map[string]*ConnKey
+	CManager     *ConnManager
 }
 
 func (s *TcpServer) AddConnKey(Id string, connKey *ConnKey) {
@@ -36,6 +37,7 @@ func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 		interceptors: make([]RequestInterceptor, 0),
 		config:       config,
 		connKeyTable: make(map[string]*ConnKey),
+		CManager:     NewConnManager(),
 	}
 	return &tcpServer, nil
 }

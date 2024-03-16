@@ -1,5 +1,7 @@
 package network
 
+import "go-networking/network"
+
 type VersionType uint16
 
 const (
@@ -15,9 +17,9 @@ type Frame struct {
 	Payload []byte
 }
 
-func NewFrame(ver VersionType, cmdType CommandType, h interface{}, payload []byte) *Frame {
+func NewFrame(cmdType CommandType, h interface{}, payload []byte) *Frame {
 	return &Frame{
-		Version: ver,
+		Version: network.VERSION_1,
 		CmdType: cmdType,
 		Header:  h,
 		Payload: payload,
