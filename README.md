@@ -81,6 +81,7 @@ PING struct and frame:
 ```go
 type PingHeader struct {
     Timestamp int64 // Timestamp
+    Id string
 }
 
 // No payload needed for PING
@@ -121,6 +122,7 @@ CLOSE and CLOSEACK are used to close the connection. Both the client and the ser
 CLOSE struct and frame:
 ```go
 type CloseHeader struct {
+    Id string
     Reason string // Reason for closing the connection
 }
 
@@ -164,6 +166,7 @@ LISTDIR and LISTDIRACK are used for listing directory and files.
 LISTDIR struct and frame:
 ```go
 type ListDirHeader struct {
+    Id string
     Timestamp int64 // Timestamp
 }
 

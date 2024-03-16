@@ -45,23 +45,20 @@ func (codec *ConnAckHeaderCodec) Encode(header interface{}) ([]byte, error) {
 	// Combined with the 8-byte timestamp, the total buffer length is 36 + 8.
 	buf := new(bytes.Buffer)
 
-	// Write UUID string (no fixed byte length)
-	buf.WriteString(connAckHeader.Id)
-
 	// Write timestamp (8 bytes)
 	binary.Write(buf, binary.BigEndian, connAckHeader.Timestamp)
+	// Write UUID string (no fixed byte length)
+	buf.WriteString(connAckHeader.Id)
 
 	return buf.Bytes(), nil
 }
 
 func (codec *ConnAckHeaderCodec) Decode(data []byte) (interface{}, error) {
-
+	// Read timestamp
+	timestamp := int64(binary.BigEndian.Uint64(data[:8]))
 	// Read UUID
 	// The UUID is the rest of the buffer after the timestamp.
 	id := string(data[8:])
-
-	// Read timestamp
-	timestamp := int64(binary.BigEndian.Uint64(data[:8]))
 
 	return &ConnAckHeader{
 		Id:        id,

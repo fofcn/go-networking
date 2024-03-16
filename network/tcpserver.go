@@ -11,12 +11,6 @@ import (
 	"github.com/cloudwego/netpoll"
 )
 
-type ConnKey struct {
-	Conn      *Conn
-	Key       string
-	Timestamp int64
-}
-
 type TcpServerConfig struct {
 	Network string
 	Addr
