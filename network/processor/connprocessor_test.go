@@ -3,6 +3,7 @@ package processor_test
 import (
 	"fmt"
 	"go-networking/network"
+	"go-networking/network/codec"
 	"go-networking/network/processor"
 	"math/big"
 	"testing"
@@ -17,13 +18,13 @@ const (
 )
 
 func TestProcess_ShouldReturnSuccess_WhenConnIsOK(t *testing.T) {
-	network.AddHeaderCodec(network.CONN, &network.ConnHeaderCodec{})
-	network.AddHeaderCodec(network.CONNACK, &network.ConnAckHeaderCodec{})
+	network.AddHeaderCodec(network.CONN, &codec.ConnHeaderCodec{})
+	network.AddHeaderCodec(network.CONNACK, &codec.ConnAckHeaderCodec{})
 	s := StartTcpServer()
 	c := StartTcpClient()
 
 	// given
-	connHeader := &network.ConnHeader{
+	connHeader := &codec.ConnHeader{
 		Timestamp: time.Now().Unix(),
 	}
 	req := network.NewFrame(network.CONN, connHeader, new(big.Int).SetInt64(1024).Bytes())

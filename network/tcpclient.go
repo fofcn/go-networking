@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"go-networking/log"
 	"io"
 	"math/big"
 	"sync"
@@ -141,7 +142,7 @@ func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, tim
 			return connSeq, nil
 		} else {
 			err := connSeq.conn.Close()
-			fmt.Printf("connection was not active, close also occured error, please check the error: %s", err)
+			log.Infof("connection was not active, close also occured error, please check the error: %s", err)
 			delete(c.hostConnTable, serverAddr)
 		}
 	}
@@ -204,9 +205,9 @@ func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) 
 		fmt.Printf("%s", err)
 		return err
 	}
-	fmt.Printf("received frame sequence no.: %d", frame.Seq)
+	log.Infof("received frame sequence no.: %d", frame.Seq)
 	if _, exists := c.rpTable[frame.Seq]; !exists {
-		fmt.Printf("what's wrong? frame sequence not matched with sequence no.: %d", frame.Seq)
+		log.Infof("what's wrong? frame sequence not matched with sequence no.: %d", frame.Seq)
 	} else {
 		rp := c.rpTable[frame.Seq]
 		rp.Add(frame)
@@ -216,7 +217,7 @@ func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) 
 }
 
 func (c *TcpClient) closeConnectionCallback(conn netpoll.Connection) error {
-	fmt.Printf("[%v] connection closed\n", conn.RemoteAddr())
+	log.Infof("[%v] connection closed\n", conn.RemoteAddr())
 	addr := conn.RemoteAddr()
 	conn.Close()
 	delete(c.hostConnTable, addr.String())

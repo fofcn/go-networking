@@ -1,7 +1,7 @@
-package network_test
+package codec_test
 
 import (
-	"go-networking/network"
+	"go-networking/network/codec"
 	"testing"
 	"time"
 
@@ -12,13 +12,13 @@ const uuidRawLength = 32
 
 func TestPingHeaderCodec_EncodeDecode_ShouldEncodeAndDecodeCorrectly_WhenGivenValidHeader(t *testing.T) {
 	// Setup example PingHeader
-	pingHeader := &network.PingHeader{
+	pingHeader := &codec.PingHeader{
 		Timestamp: time.Now().Unix(),
 		Id:        "123e4567e89b12d3a456426614174000",
 	}
 
 	// Initialize codec
-	codec := network.PingHeaderCodec{}
+	codec := codec.PingHeaderCodec{}
 
 	// Encode
 	encoded, err := codec.Encode(pingHeader)
@@ -29,7 +29,7 @@ func TestPingHeaderCodec_EncodeDecode_ShouldEncodeAndDecodeCorrectly_WhenGivenVa
 	decoded, err := codec.Decode(encoded)
 	assert.NoError(t, err)
 
-	decodedPingHeader, ok := decoded.(*network.PingHeader)
+	decodedPingHeader, ok := decoded.(*codec.PingHeader)
 	assert.True(t, ok)
 	assert.Equal(t, pingHeader.Timestamp, decodedPingHeader.Timestamp)
 	assert.Equal(t, pingHeader.Id, decodedPingHeader.Id)
@@ -37,12 +37,12 @@ func TestPingHeaderCodec_EncodeDecode_ShouldEncodeAndDecodeCorrectly_WhenGivenVa
 
 func TestPongHeaderCodec_EncodeDecode_ShouldEncodeAndDecodeCorrectly_WhenGivenValidHeader(t *testing.T) {
 	// Setup example PongHeader
-	pongHeader := &network.PongHeader{
+	pongHeader := &codec.PongHeader{
 		Timestamp: time.Now().Unix(),
 	}
 
 	// Initialize codec
-	codec := network.PongHeaderCodec{}
+	codec := codec.PongHeaderCodec{}
 
 	// Encode
 	encoded, err := codec.Encode(pongHeader)
@@ -53,7 +53,7 @@ func TestPongHeaderCodec_EncodeDecode_ShouldEncodeAndDecodeCorrectly_WhenGivenVa
 	decoded, err := codec.Decode(encoded)
 	assert.NoError(t, err)
 
-	decodedPongHeader, ok := decoded.(*network.PongHeader)
+	decodedPongHeader, ok := decoded.(*codec.PongHeader)
 	assert.True(t, ok)
 	assert.Equal(t, pongHeader.Timestamp, decodedPongHeader.Timestamp)
 }

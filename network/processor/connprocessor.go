@@ -3,14 +3,11 @@ package processor
 import (
 	"go-networking/crypto/dh"
 	"go-networking/network"
+	"go-networking/network/codec"
 	"go-networking/network/util"
 	"math/big"
-	"sync"
 	"time"
 )
-
-// 用于保护connTable的读写锁
-var connTableLock sync.RWMutex
 
 type ConnProcessor struct {
 	TcpServer *network.TcpServer
@@ -40,18 +37,15 @@ func (cp *ConnProcessor) Process(conn *network.Conn, frame *network.Frame) (*net
 	// 生成UUID
 	connID := util.GetUUIDNoDash()
 
-	// 添加连接到连接表
-	connTableLock.Lock()
 	// 记录aesKey到连接上下文中，用于之后数据的加解密
-	cp.TcpServer.AddConnKey(connID, &network.ConnKey{
+	cp.TcpServer.CManager.AddConn(connID, &network.ConnKey{
 		Conn:      conn,
 		Key:       string(aesKey),
 		Timestamp: time.Now().Unix(),
 	})
-	connTableLock.Unlock()
 
 	// 准备回复客户端的数据包
-	respHeader := &network.ConnAckHeader{
+	respHeader := &codec.ConnAckHeader{
 		// 此处需要将connID从uint64转换为字符串，如使用strconv.Itoa
 		Id:        connID,
 		Timestamp: time.Now().Unix(),

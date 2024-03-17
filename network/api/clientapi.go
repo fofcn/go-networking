@@ -3,6 +3,7 @@ package api
 import (
 	"go-networking/crypto/dh"
 	"go-networking/network"
+	"go-networking/network/codec"
 	"math/big"
 	"time"
 )
@@ -64,7 +65,7 @@ func (c *ClientApi) SendConn(tcpClient network.TcpClient) error {
 	srvPublicKey := new(big.Int).SetBytes(resp.Payload)
 	sharedKey := dh.FastGenDHSharedKey(srvPublicKey, cliPrivateKey)
 	aesKey := dh.GenAESKeyFromDHKey(sharedKey)
-	respHeader := resp.Header.(*network.ConnAckHeader)
+	respHeader := resp.Header.(*codec.ConnAckHeader)
 	connId := respHeader.Id
 	c.connContext = &ConnContext{
 		id:     connId,

@@ -27,12 +27,20 @@ func Info(msg string) {
 	glogger.Info().Msg(msg)
 }
 
+func Infof(fmt string, v ...interface{}) {
+	glogger.Info().Msgf(fmt, v...)
+}
+
 func Warn(msg string) {
 	glogger.Warn().Msg(msg)
 }
 
 func Error(msg string) {
 	glogger.Error().Msg(msg)
+}
+
+func Errorf(fmt string, v ...interface{}) {
+	glogger.Error().Msgf(fmt, v...)
 }
 
 func ErrorErr(err error) {

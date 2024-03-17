@@ -1,16 +1,16 @@
-package network_test
+package codec_test
 
 import (
 	"bytes"
 	"encoding/binary"
-	"go-networking/network"
+	"go-networking/network/codec"
 	"reflect"
 	"testing"
 )
 
 func TestFileTransferCodec_Encode_ShouldReturnBytes_WhenGivenFileTransfer(t *testing.T) {
-	ftc := network.FileTransferCodec{}
-	ft := network.FileTransfer{
+	ftc := codec.FileTransferCodec{}
+	ft := codec.FileTransfer{
 		Length:   4,
 		FilePath: "/path/to/file",
 	}
@@ -26,9 +26,9 @@ func TestFileTransferCodec_Encode_ShouldReturnBytes_WhenGivenFileTransfer(t *tes
 }
 
 func TestFileTransferCodec_Decode_ShouldReturnFileTransfer_WhenGivenBytes(t *testing.T) {
-	ftc := network.FileTransferCodec{}
+	ftc := codec.FileTransferCodec{}
 	data := []byte{0, 0, 0, 15, '/', 'p', 'a', 't', 'h', '/', 't', 'o', '/', 'f', 'i', 'l', 'e'}
-	expected := network.FileTransfer{
+	expected := codec.FileTransfer{
 		Length:   15,
 		FilePath: "/path/to/file",
 	}
@@ -43,8 +43,8 @@ func TestFileTransferCodec_Decode_ShouldReturnFileTransfer_WhenGivenBytes(t *tes
 }
 
 func TestFileTransferAckCodec_Encode_ShouldReturnBytes_WhenGivenFileTransferAck(t *testing.T) {
-	ftac := network.FileTransferAckCodec{}
-	fta := network.FileTransferAck{
+	ftac := codec.FileTransferAckCodec{}
+	fta := codec.FileTransferAck{
 		FileID:    1,
 		FileLen:   10,
 		Checksum:  12345,
@@ -72,7 +72,7 @@ func TestFileTransferAckCodec_Encode_ShouldReturnBytes_WhenGivenFileTransferAck(
 }
 
 func TestFileTransferAckCodec_Decode_ShouldReturnFileTransferAck_WhenGivenBytes(t *testing.T) {
-	ftac := network.FileTransferAckCodec{}
+	ftac := codec.FileTransferAckCodec{}
 	buf := new(bytes.Buffer)
 	buf.WriteByte(0)
 	buf.WriteByte(0)
@@ -83,7 +83,7 @@ func TestFileTransferAckCodec_Decode_ShouldReturnFileTransferAck_WhenGivenBytes(
 	buf.Write([]byte{0, 0, 4, 0})              // BlockSize
 	buf.Write([]byte{0, 0, 0, 0})              // ErrorCode
 	data := buf.Bytes()
-	expected := network.FileTransferAck{
+	expected := codec.FileTransferAck{
 		FileID:    1,
 		FileLen:   10,
 		Checksum:  12345,
@@ -101,8 +101,8 @@ func TestFileTransferAckCodec_Decode_ShouldReturnFileTransferAck_WhenGivenBytes(
 }
 
 func TestTransferCodec_Encode_ShouldReturnBytes_WhenGivenTransfer(t *testing.T) {
-	tc := network.TransferCodec{}
-	tr := network.Transfer{
+	tc := codec.TransferCodec{}
+	tr := codec.Transfer{
 		FileID: 1,
 		Seq:    2,
 		Block:  []byte("Hello, world!"),
@@ -130,7 +130,7 @@ func TestTransferCodec_Encode_ShouldReturnBytes_WhenGivenTransfer(t *testing.T) 
 }
 
 func TestTransferCodec_Decode_ShouldReturnTransfer_WhenGivenBytes(t *testing.T) {
-	tc := network.TransferCodec{}
+	tc := codec.TransferCodec{}
 	buf := new(bytes.Buffer)
 	buf.WriteByte(0)
 	buf.WriteByte(0)
@@ -144,7 +144,7 @@ func TestTransferCodec_Decode_ShouldReturnTransfer_WhenGivenBytes(t *testing.T) 
 	binary.Write(buf, binary.BigEndian, uint32(len(blockData)))
 	buf.Write(blockData)
 	data := buf.Bytes()
-	expected := network.Transfer{
+	expected := codec.Transfer{
 		FileID: 1,
 		Seq:    2,
 		Block:  blockData,

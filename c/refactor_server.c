@@ -17,8 +17,8 @@
 int epoll_fd;
 
 // handlers
-void* handle_accept(void* arg);
-void* handle_io(void* arg);
+void* run_event_loop(void* arg);
+void* handle_io_event(void* arg);
 void wait_to_death();
 
 int main() {
@@ -53,11 +53,11 @@ int main() {
     printf("epoll add\n");
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event);
 
-    // create accept handler threads
+    // 创建线程，执行事件循环
     pthread_t accept_threads[2];
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 1; i++) {
         printf("create acceptor thread. index: %d\n", i);
-		pthread_create(&accept_threads[i], NULL, handle_accept, &server_fd);
+		pthread_create(&accept_threads[i], NULL, run_event_loop, &server_fd);
         pthread_detach(accept_threads[i]);
 	}
     
@@ -69,7 +69,7 @@ int main() {
     return 0;
 }
 
-void* handle_accept(void* arg) {
+void* run_event_loop(void* arg) {
     int server_fd = *(int*)arg;
 
     while (1) {
@@ -85,13 +85,13 @@ void* handle_accept(void* arg) {
                 
 				// create a worker thread to handle this connection
 				pthread_t worker_thread;
-				pthread_create(&worker_thread, NULL, handle_io, &client_fd);
+				pthread_create(&worker_thread, NULL, handle_io_event, &client_fd);
 			}
 		}
 	}
 }
 
-void* handle_io(void* arg) {
+void* handle_io_event(void* arg) {
     int client_fd = *(int*)arg;
 
     while (1) {
