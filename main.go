@@ -18,6 +18,20 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title http server
+// @version 1.0
+// @description http server
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name errorfatal89@gmail.com
+// @contact.url http://www.swagger.io/support
+// @contact.email support@swagger.io
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host http://localhost:8080
+// @BasePath /api/v1
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.InitLogger()

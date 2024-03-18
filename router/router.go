@@ -35,12 +35,17 @@ func InitRouter(r *gin.Engine) {
 		}
 	})
 
-	r.GET("/hello", handler.HelloWorld)
-	r.POST("/login", handler.Login)
-	r.POST("/upload", handler.UploadFile)
-	r.GET("/user/:name", handler.RecvParameterFromPath)
-}
+	v1 := r.Group("/api/v1")
 
-func Add() {
+	auth := v1.Group("/auth")
+	auth.POST("/login", handler.Login)
+	// auth.DELETE("/logout", handler.Logout)
 
+	file := v1.Group("/file")
+	file.POST("/upload", handler.UploadFile)
+
+	user := v1.Group("/user")
+	user.GET("/user/:name", handler.RecvParameterFromPath)
+
+	v1.GET("/hello", handler.HelloWorld)
 }
