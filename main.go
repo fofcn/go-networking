@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"go-networking/config"
+	"go-networking/docs"
 	"go-networking/log"
 	"go-networking/network"
 	"go-networking/router"
@@ -12,6 +13,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sethvargo/go-envconfig"
+
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -75,6 +79,8 @@ func startHttpServer() {
 		WriteTimeout:   time.Duration(config.GetHttpServerConfig().WriteTimeout) * time.Second,
 		MaxHeaderBytes: config.GetHttpServerConfig().MaxHeaderBytes,
 	}
+	docs.SwaggerInfo.BasePath = "/api/v1"
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	router.InitRouter(r)
 

@@ -40,3 +40,7 @@ func InitRouter(r *gin.Engine) {
 	r.POST("/upload", handler.UploadFile)
 	r.GET("/user/:name", handler.RecvParameterFromPath)
 }
+
+func Add() {
+
+}
