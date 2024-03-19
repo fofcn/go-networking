@@ -31,6 +31,7 @@ import (
 
 func TestUnbufferedChannel_ShouldRecvValues_WhenWriteValueToChannel(t *testing.T) {
 
+	// 创建channel
 	c := make(chan int)
 
 	// given
@@ -44,7 +45,7 @@ func TestUnbufferedChannel_ShouldRecvValues_WhenWriteValueToChannel(t *testing.T
 	assert.Equal(t, 21, ret1)
 }
 
-func TestUnbufferedChannel_ShouldTimeout_WhenNoValueWriteToChannel(t *testing.T) {
+func TestUnbufferedChannel_ShouldReadTimeout_WhenNoValueWriteToChannel(t *testing.T) {
 
 	// given
 	c := make(chan int)
@@ -60,6 +61,61 @@ func TestUnbufferedChannel_ShouldTimeout_WhenNoValueWriteToChannel(t *testing.T)
 
 	assert.True(t, is_timeout)
 
+}
+
+func TestUnbufferedChannel_ShouldWriteTimeout_WhenNoRoutineReadTheChannel(t *testing.T) {
+
+	// given
+	c := make(chan int)
+	is_timeout := false
+	try_to_write_value := 1
+
+	// when
+	select {
+	case c <- try_to_write_value:
+	case <-time.After(3 * time.Second):
+		// should
+		is_timeout = true
+	}
+
+	assert.True(t, is_timeout)
+
+}
+
+func TestBufferedChannel_ShouldNotBlock_WhenWriteValueLessThanCapacity(t *testing.T) {
+	// given
+	c := make(chan int, 2)
+
+	// when
+	c <- 1
+	c <- 2
+
+	// then
+	assert.Equal(t, 1, <-c)
+	assert.Equal(t, 2, <-c)
+}
+
+func TestBufferedChannel_ShouldBlock_WhenCapacityReached(t *testing.T) {
+	// given
+	c := make(chan int, 2)
+
+	// when
+	c <- 1
+	c <- 2
+
+	// this will block channel
+	is_block := false
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				is_block = true
+			}
+		}()
+		c <- 3
+	}()
+
+	time.Sleep(1 * time.Second) // wait for goroutine completes
+	assert.True(t, is_block)
 }
 
 func sum(s []int, c chan int) {
