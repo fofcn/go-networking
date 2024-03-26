@@ -117,15 +117,7 @@ func insertTestData() {
 		}(i)
 	}
 
-	wg.Wait() // wait for all goroutines to finish
-
-	// // Check if any remaining users/products to insert
-	// if len(users) > 0 {
-	// 	db.Create(&users)
-	// }
-	// if len(products) > 0 {
-	// 	db.Create(&products)
-	// }
+	wg.Wait()
 
 	log.Info("Success insert test data to mysql")
 }
