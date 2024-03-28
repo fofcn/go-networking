@@ -22,7 +22,7 @@ jobs:
         go-version: '1.21'
 
     - name: Build
-      run: go build
+      run: go build -o go-networking cmd/main.go
 
   docker:
     runs-on: ubuntu-latest
