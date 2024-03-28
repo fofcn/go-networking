@@ -23,11 +23,11 @@ type TcpServer struct {
 	listener     netpoll.Listener
 	eventLoop    netpoll.EventLoop
 	pollerNum    int
-	connKeyTable map[string]*ConnKey
+	connKeyTable map[string]*ConnCtx
 	CManager     *ConnManager
 }
 
-func (s *TcpServer) AddConnKey(Id string, connKey *ConnKey) {
+func (s *TcpServer) AddConnKey(Id string, connKey *ConnCtx) {
 	s.connKeyTable[Id] = connKey
 }
 
@@ -36,7 +36,7 @@ func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 		processors:   make(map[CommandType]Processor),
 		interceptors: make([]RequestInterceptor, 0),
 		config:       config,
-		connKeyTable: make(map[string]*ConnKey),
+		connKeyTable: make(map[string]*ConnCtx),
 		CManager:     NewConnManager(),
 	}
 	return &tcpServer, nil
@@ -148,7 +148,7 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 
 	if processor, ok := s.processors[req.CmdType]; ok {
 		resp, err := processor.Process(&Conn{
-			connection: connection,
+			Connection: connection,
 		}, req)
 		if err != nil {
 			return err

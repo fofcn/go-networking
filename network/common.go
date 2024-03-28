@@ -8,7 +8,16 @@ type Addr struct {
 }
 
 type Conn struct {
-	connection netpoll.Connection
+	Connection netpoll.Connection
+}
+
+type ConnCtx struct {
+	// real connection
+	Conn *Conn
+	// encrypt key
+	Key string
+	// last ping time, update by ping command
+	LastPingTime int64
 }
 
 type RequestInterceptor interface {

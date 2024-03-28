@@ -1,77 +1,109 @@
 package network
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
 
-const (
-	// 定义超时时长为1小时
-	HourInSeconds = 60 * 60
-)
+func newConnCtx(conn *Conn) *ConnCtx {
+	return &ConnCtx{
+		Conn:         conn,
+		Key:          "",
+		LastPingTime: time.Now().Unix(),
+	}
+}
 
-type ConnKey struct {
-	Conn      *Conn
-	Key       string
-	Timestamp int64
+func (ctx *ConnCtx) updateKey(key string) {
+	ctx.Key = key
+}
+
+func (ctx *ConnCtx) updatePing() {
+	ctx.LastPingTime = time.Now().Unix()
 }
 
 type ConnManager struct {
-	mux          sync.Mutex
-	connKeyTable map[string]*ConnKey
-	isStopped    bool
+	// connKeyTable map[string]*ConnKey
+	// string: device-uid
+	// connKey: connection, encrypt key, and others
+	deviceConnMap *sync.Map
+	isStopped     bool
+	timeout       time.Duration
+	timer         *time.Ticker
 }
 
 func NewConnManager() *ConnManager {
 	cm := &ConnManager{
-		connKeyTable: make(map[string]*ConnKey),
-		isStopped:    false,
+		deviceConnMap: &sync.Map{},
+		isStopped:     false,
+		// todo default timeout is 30s
+		timeout: 30 * time.Second,
+		timer:   time.NewTicker(30 * time.Second),
 	}
 
 	cm.cleanupNoActiveConn()
 	return cm
 }
 
-func (cm *ConnManager) AddConn(id string, connKey *ConnKey) {
-	cm.mux.Lock()
-	defer cm.mux.Unlock()
-	cm.connKeyTable[id] = connKey
+func (cm *ConnManager) Store(id string, conn *Conn) {
+	cm.deviceConnMap.Store(id, newConnCtx(conn))
 }
 
-func (cm *ConnManager) Ping(id string, ts int64) {
-	if connKey, exists := cm.connKeyTable[id]; exists {
-		connKey.Timestamp = ts
+func (cm *ConnManager) Delete(id string) *ConnCtx {
+	if value, ok := cm.deviceConnMap.Load(id); ok {
+		cm.deviceConnMap.Delete(id)
+		return value.(*ConnCtx)
 	}
+
+	return nil
+}
+
+func (cm *ConnManager) Load(id string) (*Conn, bool) {
+	if value, ok := cm.deviceConnMap.Load(id); ok {
+		ctx := value.(*ConnCtx)
+		return ctx.Conn, true
+	}
+
+	return nil, false
+}
+
+func (cm *ConnManager) Ping(id string) error {
+	if value, ok := cm.deviceConnMap.Load(id); ok {
+		if connctx, ok := value.(*ConnCtx); ok {
+			connctx.updatePing()
+			return nil
+		}
+	}
+
+	return errors.New("client not found")
 }
 
 func (cm *ConnManager) Stop() {
 	cm.isStopped = true
+	defer cm.timer.Stop()
 }
 
 func (cm *ConnManager) cleanupNoActiveConn() {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for cm.isStopped {
-		// 这里就是典型判断Channel是否有事件发生，如果发生则执行cm.cleanupNoAciveConn
-		<-ticker.C
-		cm.doCleanupNoActiveConn()
-	}
+	go cm.doCleanupNoActiveConn()
 }
 
 func (cm *ConnManager) doCleanupNoActiveConn() {
-	// 锁定connKeyTable的操作
-	cm.mux.Lock()
-	defer cm.mux.Unlock()
+	println("enter cleanup timer")
+	for {
+		<-cm.timer.C
+		if !cm.isStopped {
+			println("cleanup timer has triggered")
+			cm.deviceConnMap.Range(func(k, v interface{}) bool {
+				now := time.Now().Unix()
+				if connctx, ok := v.(*ConnCtx); ok {
+					if now-connctx.LastPingTime > int64(cm.timeout/time.Second) {
+						cm.deviceConnMap.Delete(k)
+					}
+				}
 
-	// 获取当前时间的时间戳
-	now := time.Now().Unix()
-
-	// 遍历connKeyTable
-	for id, connKey := range cm.connKeyTable {
-		// 如果连接的Timestamp小于(当前时间减去1小时)，则删除该连接
-		if now-connKey.Timestamp > HourInSeconds {
-			delete(cm.connKeyTable, id)
+				return true
+			})
 		}
+
 	}
 }
