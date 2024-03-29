@@ -9,13 +9,18 @@ import (
 func newConnCtx(conn *Conn) *ConnCtx {
 	return &ConnCtx{
 		Conn:         conn,
-		Key:          "",
+		CKey:         "",
+		SKey:         "",
 		LastPingTime: time.Now().Unix(),
 	}
 }
 
-func (ctx *ConnCtx) updateKey(key string) {
-	ctx.Key = key
+func (ctx *ConnCtx) updateCKey(ckey string) {
+	ctx.CKey = key
+}
+
+func (ctx *ConnCtx) updateSKey(skey string) {
+	ctx.SKey = skey
 }
 
 func (ctx *ConnCtx) updatePing() {
@@ -47,6 +52,20 @@ func NewConnManager() *ConnManager {
 
 func (cm *ConnManager) Store(id string, conn *Conn) {
 	cm.deviceConnMap.Store(id, newConnCtx(conn))
+}
+
+func (cm *ConnManager) StoreCKey(id string, cKey *string) {
+	if value, ok := cm.deviceConnMap.Load(id); ok {
+		ctx := value.(*ConnCtx)
+		ctx.updateCKey(cKey)
+	}
+}
+
+func (cm *ConnManager) StoreSKey(id string, sKey *string) {
+	if value, ok := cm.deviceConnMap.Load(id); ok {
+		ctx := value.(*ConnCtx)
+		ctx.updateSKey(sKey)
+	}
 }
 
 func (cm *ConnManager) Delete(id string) *ConnCtx {
