@@ -71,6 +71,7 @@ func insertTestData() {
 	})
 	if err != nil {
 		log.Error("connect db errr")
+		println("connect db errr")
 		return
 	}
 
@@ -91,8 +92,10 @@ func insertTestData() {
 
 	batchSize := 100
 
+	runtime.GOMAXPROCS(20)
+
 	// Create 50k users and 50k products
-	for i := 0; i < 500000; i++ {
+	for i := 0; i < 50000000; i++ {
 		// Add to wait group
 		wg.Add(1)
 		goroutines <- struct{}{}
