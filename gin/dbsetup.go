@@ -2,15 +2,16 @@ package gin
 
 import (
 	"fmt"
-	"log"
+	"go-networking/log"
 	"os"
 
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-var GDB *gorm.DB
+var GDB *gorm.DB = nil
 
 // DBConfig 用于存储数据库配置信息
 type DBConfig struct {
@@ -45,6 +46,7 @@ func getEnv(key, fallback string) string {
 
 // InitDB 初始化数据库连接
 func InitDB() {
+	log.Info("init DB")
 	err := godotenv.Load(".dbenv")
 	if err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
@@ -65,11 +67,13 @@ func InitDB() {
 	})
 
 	if err != nil {
-		log.Printf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 		// 这里可以添加更多的错误处理逻辑，比如重试连接
 		os.Exit(1) // 显式退出程序
 	}
 
+	GDB = db
 	// 这里添加AutoMigrate代码
-	db.AutoMigrate(&User{})
+	// GDB.AutoMigrate(&User{})
+	log.Info("init DB completed")
 }

@@ -43,7 +43,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.InitLogger()
 
-	insertTestData()
+	// insertTestData()
 
 	go startTcpServer()
 

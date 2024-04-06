@@ -1,32 +1,25 @@
 package handler
 
-import (
-	"go-networking/gin/common"
-	"net/http"
+// type Loginrequest struct {
+// 	Username string `json:"username"`
+// 	Password string `json:"password"`
+// }
 
-	"github.com/gin-gonic/gin"
-)
+// var embeddedCredentials = []Loginrequest{
+// 	{Username: "hello", Password: "world"},
+// }
 
-type Loginrequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
+// // func Login(c *gin.Context) {
+// // 	var request Loginrequest
+// // 	if err := c.BindJSON(&request); err != nil {
+// // 		c.IndentedJSON(http.StatusOK, common.SuccessResponse{Data: "Failed", Message: "Username or password is incorrect."})
+// // 		return
+// // 	}
 
-var embeddedCredentials = []Loginrequest{
-	{Username: "hello", Password: "world"},
-}
-
-func Login(c *gin.Context) {
-	var request Loginrequest
-	if err := c.BindJSON(&request); err != nil {
-		c.IndentedJSON(http.StatusOK, common.SuccessResponse{Data: "Failed", Message: "Username or password is incorrect."})
-		return
-	}
-
-	if request.Username == embeddedCredentials[0].Username && request.Password == embeddedCredentials[0].Password {
-		c.IndentedJSON(http.StatusOK, common.NoDataSuccessResposne)
-	} else {
-		c.IndentedJSON(http.StatusOK, common.SuccessResponse{Data: "Failed", Message: "Username or password is incorrect."})
-		return
-	}
-}
+// // 	if request.Username == embeddedCredentials[0].Username && request.Password == embeddedCredentials[0].Password {
+// // 		c.IndentedJSON(http.StatusOK, common.NoDataSuccessResposne)
+// // 	} else {
+// // 		c.IndentedJSON(http.StatusOK, common.SuccessResponse{Data: "Failed", Message: "Username or password is incorrect."})
+// // 		return
+// // 	}
+// // }

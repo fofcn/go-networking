@@ -3,14 +3,15 @@ package router
 import (
 	"fmt"
 	"go-networking/gin/global"
-	"go-networking/gin/handler"
-	"log"
+	"go-networking/gin/user"
+	"go-networking/log"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 func InitRouter(r *gin.Engine) {
+	log.Info("Init router")
 	r.Use(gin.CustomRecovery(global.ErrorHandler))
 	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		// your custom format
@@ -28,7 +29,7 @@ func InitRouter(r *gin.Engine) {
 	}))
 	r.Use(func(c *gin.Context) {
 		if c.FullPath() == "/login" {
-			log.Println("Passing through the exact URI filter.")
+			log.Info("Passing through the exact URI filter.")
 			c.Next()
 		} else {
 			c.Next()
@@ -38,14 +39,8 @@ func InitRouter(r *gin.Engine) {
 	v1 := r.Group("/api/v1")
 
 	auth := v1.Group("/auth")
-	auth.POST("/login", handler.Login)
-	// auth.DELETE("/logout", handler.Logout)
+	user.InitRouter(auth)
+	user.InitAuthMiddleware(r)
 
-	file := v1.Group("/file")
-	file.POST("/upload", handler.UploadFile)
-
-	user := v1.Group("/user")
-	user.GET("/user/:name", handler.RecvParameterFromPath)
-
-	v1.GET("/hello", handler.HelloWorld)
+	log.Info("Init router completed")
 }

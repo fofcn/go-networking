@@ -1,15 +1,15 @@
 package common
 
-type SuccessResponse struct {
+type CommonResp struct {
 	Data    interface{} `json:"data"`
 	Message string      `json:"message"`
 }
 
-var NoDataSuccessResposne = SuccessResponse{
+var NoDataSuccessResposne = CommonResp{
 	Data:    "OK",
 	Message: "OK",
 }
-var NoDataFailureResposne = SuccessResponse{
+var NoDataFailureResposne = CommonResp{
 	Data:    "Failed",
 	Message: "Failed",
 }

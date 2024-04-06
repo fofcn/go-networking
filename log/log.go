@@ -1,6 +1,7 @@
 package log
 
 import (
+	"io"
 	"os"
 	"runtime/debug"
 
@@ -10,7 +11,7 @@ import (
 var glogger zerolog.Logger
 
 func InitLogger() error {
-	logger, err := createLogger(zerolog.DebugLevel, "go-networking.log", true)
+	logger, err := createLogger(zerolog.DebugLevel, "./go-networking.log", true)
 	if err != nil {
 		return err
 	}
@@ -43,16 +44,20 @@ func Errorf(fmt string, v ...interface{}) {
 	glogger.Error().Msgf(fmt, v...)
 }
 
+func Fatal(msg string) {
+	glogger.Fatal().Msg(msg)
+}
+
+func Fatalf(fmt string, v ...interface{}) {
+	glogger.Fatal().Msgf(fmt, v...)
+}
+
 func ErrorErr(err error) {
 	glogger.Error().Err(err).Msg("")
 }
 
 func ErrorErrMsg(err error, msg string) {
 	glogger.Error().Err(err).Msg(msg)
-}
-
-func Fatal(msg string) {
-	glogger.Fatal().Msg(msg)
 }
 
 func Panic(msg string) {
@@ -82,8 +87,9 @@ func createLogger(level zerolog.Level, fileName string, console bool) (zerolog.L
 		Logger()
 
 	if console {
-		consoleOutput := zerolog.ConsoleWriter{Out: os.Stdout, NoColor: true, TimeFormat: "2006-01-02 15:04:05"}
-		logger = logger.Output(consoleOutput)
+		consoleOutput := zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false, TimeFormat: "2006-01-02 15:04:05"}
+		multi := io.MultiWriter(file, consoleOutput)
+		logger = logger.Output(multi)
 	}
 
 	return logger, nil

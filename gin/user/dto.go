@@ -1,5 +1,6 @@
 package user
 
 type LoginDto struct {
-	token string `json:"token"`
+	Token string `json:"token"`
+	Exp   int64  `json:"exp"`
 }
