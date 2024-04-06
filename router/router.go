@@ -36,11 +36,19 @@ func InitRouter(r *gin.Engine) {
 		}
 	})
 
+	// order is very import since auth protection will not work if the middleware is not registered.
+	// user.InitAuthMiddleware(r)
+	log.Info("Init auth middleware completed")
+
 	v1 := r.Group("/api/v1")
 
-	auth := v1.Group("/auth")
-	user.InitRouter(auth)
-	user.InitAuthMiddleware(r)
+	publicGroup := v1.Group("/")
+
+	protectGroup := v1.Group("/")
+	protectGroup.Use(user.AuthMiddleware())
+
+	user.InitRouter(publicGroup, protectGroup)
+	log.Info("Init router completed")
 
 	log.Info("Init router completed")
 }

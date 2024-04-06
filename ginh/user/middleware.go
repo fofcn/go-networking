@@ -3,6 +3,7 @@ package user
 import (
 	"fmt"
 	"go-networking/ginh/common"
+	"go-networking/log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,7 @@ func InitAuthMiddleware(r *gin.Engine) {
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		log.Info("AuthMiddleware")
 		tokenStr := c.GetHeader("Authorization")
 		if tokenStr == "" {
 			c.JSON(http.StatusUnauthorized, common.CommonResp{

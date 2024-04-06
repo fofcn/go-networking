@@ -10,9 +10,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func InitRouter(r *gin.RouterGroup) {
-	r.POST("/login", db.WithDB(Login))
-	r.POST("/register", db.WithDB(Register))
+func InitRouter(public *gin.RouterGroup, protect *gin.RouterGroup) {
+	public.POST("/auth/login", db.WithDB(Login))
+	public.POST("/auth/register", db.WithDB(Register))
+	protect.GET("/auth/userinfo", db.WithDB(GetUserInfo))
 }
 
 func Login(c *gin.Context, db *gorm.DB) {
@@ -40,6 +41,24 @@ func Login(c *gin.Context, db *gorm.DB) {
 }
 
 func Register(c *gin.Context, db *gorm.DB) {
+	userService := GetUserService(db)
+	var registerCmd RegisterCmd
+	if err := c.ShouldBindJSON(&registerCmd); err != nil {
+		log.Errorf("Register failed: %v", err)
+		c.IndentedJSON(http.StatusOK, common.CommonResp{Data: "Failed", Message: "Username or password is incorrect."})
+		return
+	}
+
+	err := userService.DoRegister(&registerCmd)
+	if err != nil {
+		log.Errorf("Register failed: %v", err)
+		c.IndentedJSON(http.StatusOK, common.CommonResp{Data: "Failed", Message: "Username or password is incorrect."})
+		return
+	}
+	c.JSON(http.StatusOK, common.NoDataSuccessResposne)
+}
+
+func GetUserInfo(c *gin.Context, db *gorm.DB) {
 	userService := GetUserService(db)
 	var registerCmd RegisterCmd
 	if err := c.ShouldBindJSON(&registerCmd); err != nil {
