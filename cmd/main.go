@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"go-networking/config"
+	"go-networking/db"
 	"go-networking/docs"
 	"go-networking/infra/model"
 	"go-networking/log"
@@ -42,8 +43,6 @@ import (
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.InitLogger()
-
-	// insertTestData()
 
 	go startTcpServer()
 
@@ -169,6 +168,8 @@ func startHttpServer() {
 		WriteTimeout:   time.Duration(config.GetHttpServerConfig().WriteTimeout) * time.Second,
 		MaxHeaderBytes: config.GetHttpServerConfig().MaxHeaderBytes,
 	}
+
+	r.Use(db.DbMiddleware())
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 

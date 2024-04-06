@@ -2,8 +2,8 @@ package router
 
 import (
 	"fmt"
-	"go-networking/gin/global"
-	"go-networking/gin/user"
+	"go-networking/ginh/global"
+	"go-networking/ginh/user"
 	"go-networking/log"
 	"time"
 
