@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	"go-networking/log"
 	"sync"
@@ -58,20 +59,24 @@ func (us *UserService) DoLogin(username string, password string) (string, error)
 	return token, nil
 }
 
-func (us *UserService) DoRegister(username string, password string) error {
+func (us *UserService) DoRegister(cmd *RegisterCmd) error {
 	// 查询数据库
 	var user User
-	err := us.db.Where("username = ?", username).First(&user).Error
-	if err != nil {
+	err := us.db.Where("username = ?", cmd.Username).First(&user).Error
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Errorf("find user error, %v %v", cmd.Username, err)
 		return err
 	}
+
 	if user.ID != 0 {
-		return fmt.Errorf("user already exist")
+		log.Errorf("user could not be found, %v", cmd.Username)
+		return err
 	}
+
 	// 加密密码
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), bcrypt.DefaultCost)
 	return us.db.Create(&User{
-		Username: username,
+		Username: cmd.Username,
 		Password: string(hashedPassword),
 	}).Error
 }

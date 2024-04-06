@@ -41,6 +41,18 @@ func Login(c *gin.Context, db *gorm.DB) {
 
 func Register(c *gin.Context, db *gorm.DB) {
 	userService := GetUserService(db)
-	userService.DoRegister(c.PostForm("username"), c.PostForm("password"))
-	c.JSON(http.StatusOK, gin.H{"message": "register success"})
+	var registerCmd RegisterCmd
+	if err := c.ShouldBindJSON(&registerCmd); err != nil {
+		log.Errorf("Register failed: %v", err)
+		c.IndentedJSON(http.StatusOK, common.CommonResp{Data: "Failed", Message: "Username or password is incorrect."})
+		return
+	}
+
+	err := userService.DoRegister(&registerCmd)
+	if err != nil {
+		log.Errorf("Register failed: %v", err)
+		c.IndentedJSON(http.StatusOK, common.CommonResp{Data: "Failed", Message: "Username or password is incorrect."})
+		return
+	}
+	c.JSON(http.StatusOK, common.NoDataSuccessResposne)
 }

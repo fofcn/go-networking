@@ -13,14 +13,15 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+var gdb *gorm.DB
+
+func GetDB() *gorm.DB {
+	return gdb
+}
+
 func DbMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		db, err := initDB()
-		if err != nil {
-			log.ErrorErr(err)
-			os.Exit(1)
-		}
-		c.Set("db", db)
+		c.Set("db", gdb)
 		c.Next()
 	}
 }
@@ -70,7 +71,7 @@ func getEnv(key, fallback string) string {
 }
 
 // InitDB 初始化数据库连接
-func initDB() (*gorm.DB, error) {
+func InitDB() (*gorm.DB, error) {
 	log.Info("init DB")
 	err := godotenv.Load(".dbenv")
 	if err != nil {
@@ -96,6 +97,8 @@ func initDB() (*gorm.DB, error) {
 		log.Fatalf("Failed to connect to database: %v", err)
 		os.Exit(1) // 显式退出程序
 	}
+
+	gdb = db
 
 	log.Info("init DB completed")
 	return db, nil

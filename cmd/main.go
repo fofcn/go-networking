@@ -5,6 +5,7 @@ import (
 	"go-networking/config"
 	"go-networking/db"
 	"go-networking/docs"
+	"go-networking/ginh/user"
 	"go-networking/infra/model"
 	"go-networking/log"
 	"go-networking/network"
@@ -161,6 +162,9 @@ func startHttpServer() {
 
 	r := gin.Default()
 
+	db.InitDB()
+	user.InitAutoMigrate(db.GetDB())
+
 	server := &http.Server{
 		Addr:           ":8080",
 		Handler:        r,
@@ -172,7 +176,6 @@ func startHttpServer() {
 	r.Use(db.DbMiddleware())
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
-
 	router.InitRouter(r)
 
 	server.ListenAndServe()
