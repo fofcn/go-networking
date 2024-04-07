@@ -2,8 +2,10 @@ package network
 
 import (
 	"errors"
+	"go-networking/log"
 	"go-networking/network/codec"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -42,7 +44,7 @@ type ConnManager struct {
 	// key: 设备UID。
 	// value: ConnCtx实例，包含连接及相关密钥信息。
 	deviceConnMap *sync.Map
-	isStopped     bool
+	isStopped     atomic.Uint32
 	timeout       time.Duration // 连接超时时间
 	timer         *time.Ticker  // 定时器，用于定期清理无活跃连接
 }
@@ -50,12 +52,14 @@ type ConnManager struct {
 // NewConnManager 创建并初始化一个新的ConnManager实例。
 // 返回值: 初始化后的ConnManager指针。
 func NewConnManager() *ConnManager {
+	atomic.StoreInt32(0)
 	cm := &ConnManager{
 		deviceConnMap: &sync.Map{},
-		isStopped:     false,
 		timeout:       30 * time.Second,
 		timer:         time.NewTicker(30 * time.Second),
 	}
+
+	cm.isStopped.Store(0)
 
 	cm.cleanupNoActiveConn()
 	return cm
@@ -132,7 +136,7 @@ func (cm *ConnManager) Ping(id string, ts int64) error {
 
 // Stop 停止ConnManager的定时清理任务。
 func (cm *ConnManager) Stop() {
-	cm.isStopped = true
+	cm.isStopped.Store(1)
 	defer cm.timer.Stop()
 }
 
@@ -146,8 +150,8 @@ func (cm *ConnManager) doCleanupNoActiveConn() {
 	println("enter cleanup timer")
 	for {
 		<-cm.timer.C
-		if !cm.isStopped {
-			println("cleanup timer has triggered")
+		if cm.isStopped.Load() == 0 {
+			log.Info("cleanup timer has triggered")
 			cm.deviceConnMap.Range(func(k, v interface{}) bool {
 				now := time.Now().Unix()
 				if connctx, ok := v.(*ConnCtx); ok {
