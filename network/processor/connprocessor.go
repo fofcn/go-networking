@@ -22,7 +22,6 @@ type ConnProcessor struct {
 // 获取自己的公钥回复给客户端，公钥写入到ConnPayload的PublicKey字段中
 // 使用FastGenDHKP生成DH密钥对
 // 使用FastGenDHSharedKey计算共享密钥
-
 func (cp *ConnProcessor) Process(conn *network.Conn, frame *network.Frame) (*network.Frame, error) {
 	// 解析客户端DH公钥
 	clientDHKey := new(big.Int).SetBytes(frame.Payload)

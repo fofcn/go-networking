@@ -5,7 +5,7 @@ import (
 )
 
 type ListdireProcessor struct {
-	TcpClient *network.TcpClient
+	TcpSrv *network.TcpServer
 }
 
 func (lp *ListdireProcessor) Process(conn *network.Conn, frame *network.Frame) (*network.Frame, error) {

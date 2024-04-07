@@ -9,6 +9,7 @@ import (
 	"go-networking/infra/model"
 	"go-networking/log"
 	"go-networking/network"
+	"go-networking/network/processor"
 	"go-networking/router"
 	"math/rand"
 	"net/http"
@@ -139,6 +140,10 @@ func startTcpServer() {
 		log.ErrorErrMsg(err, "TCP server init failure.")
 		return
 	}
+
+	tcpServer.AddProcessor(network.CONN, &processor.ConnProcessor{TcpServer: tcpServer})
+	tcpServer.AddProcessor(network.PING, &processor.PingProcessor{TcpServer: tcpServer})
+	tcpServer.AddProcessor(network.LISTDIR, &processor.ListdireProcessor{TcpSrv: tcpServer})
 
 	err = tcpServer.Start()
 	if err != nil {
