@@ -37,7 +37,7 @@ func (rf *ResponsePromiseI) Add(frame *Frame) {
 
 func (rf *ResponsePromiseI) Wait() (*Frame, error) {
 	isTimeout := rf.countdown.WaitWithTimeout(30 * time.Second)
-	if isTimeout {
+	if isTimeout || rf.frame == nil {
 		return nil, fmt.Errorf("waiting for response timeout, seq: %d", rf.seq)
 	}
 	return rf.frame, nil

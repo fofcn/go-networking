@@ -38,10 +38,10 @@ func (cp *ConnProcessor) Process(conn *network.Conn, frame *network.Frame) (*net
 	connID := util.GetUUIDNoDash()
 
 	// 记录aesKey到连接上下文中，用于之后数据的加解密
-	cp.TcpServer.CManager.AddConn(connID, &network.ConnCtx{
-		Conn:      conn,
-		Key:       string(aesKey),
-		Timestamp: time.Now().Unix(),
+	cp.TcpServer.AddConnKey(connID, &network.ConnCtx{
+		Conn:         conn,
+		CKey:         aesKey,
+		LastPingTime: time.Now().Unix(),
 	})
 
 	// 准备回复客户端的数据包

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"go-networking/log"
 	"io"
 	"time"
 
@@ -83,7 +84,7 @@ func (s *TcpServer) Start() error {
 }
 
 func (s *TcpServer) Stop() error {
-	fmt.Println("TCP Server stop")
+	log.Info("TCP Server stop")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err := s.eventLoop.Shutdown(ctx)
@@ -91,7 +92,7 @@ func (s *TcpServer) Stop() error {
 }
 
 func (s *TcpServer) AddProcessor(cmdType CommandType, process Processor) {
-	fmt.Println("Adding processor")
+	log.Info("Adding processor")
 	s.processors[cmdType] = process
 }
 
@@ -104,12 +105,12 @@ func prepare(connection netpoll.Connection) context.Context {
 }
 
 func close(connection netpoll.Connection) error {
-	fmt.Printf("[%v] connection closed\n", connection.RemoteAddr())
+	log.Infof("[%v] connection closed\n", connection.RemoteAddr())
 	return nil
 }
 
 func connect(ctx context.Context, connection netpoll.Connection) context.Context {
-	fmt.Printf("[%v] connection established\n", connection.RemoteAddr())
+	log.Infof("[%v] connection established\n", connection.RemoteAddr())
 	connection.AddCloseCallback(close)
 	return ctx
 }
@@ -118,7 +119,7 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 	reader, writer := connection.Reader(), connection.Writer()
 	readLen, err := binary.ReadUvarint(reader)
 	if err != nil {
-		fmt.Printf("%s", err)
+		log.Errorf("%s", err)
 		if err == io.EOF {
 			defer reader.Release()
 		}
@@ -128,7 +129,7 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 
 	data, err := reader.ReadBinary(int(readLen))
 	if err != nil {
-		fmt.Printf("%s", err)
+		log.Errorf("%s", err)
 		if err == io.EOF {
 			defer reader.Release()
 		}
@@ -138,6 +139,8 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 	if err != nil {
 		return err
 	}
+
+	log.Infof("server recv frame sequence: %d", req.Seq)
 
 	if len(s.interceptors) != 0 {
 		for _, interceptor := range s.interceptors {

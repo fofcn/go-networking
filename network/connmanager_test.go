@@ -37,7 +37,7 @@ func TestLoad_ShouldReturnConnection_WhenIdExists(t *testing.T) {
 func TestPing_ShouldReturnError_WhenIdDoesNotExist(t *testing.T) {
 	manager := network.NewConnManager()
 
-	err := manager.Ping("nonexistentID")
+	err := manager.Ping("nonexistentID", time.Now().Unix())
 
 	assert.NotNil(t, err, "Should return error")
 	assert.Equal(t, "client not found", err.Error(), "Should return correct error")
@@ -70,7 +70,7 @@ func TestCleanup_ShouldNotRemoveIdleConnections_WhenPingedInTimeoutIntervalI(t *
 	ticker := time.NewTicker(15 * time.Second)
 	go func() {
 		<-ticker.C
-		manager.Ping("testID")
+		manager.Ping("1111", time.Now().Unix())
 	}()
 
 	// 等待超时，然后调用 cleanupNoActiveConn

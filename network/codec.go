@@ -7,6 +7,11 @@ import (
 	"fmt"
 )
 
+type CryptoAlg interface {
+	Encrypt(plain []byte) ([]byte, error)
+	Decrypt(encrypted []byte) ([]byte, error)
+}
+
 type Codec interface {
 	Encode(frame *Frame) ([]byte, error)
 	Decode(data []byte) (*Frame, error)

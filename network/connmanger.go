@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"go-networking/network/codec"
 	"sync"
 	"time"
 )
@@ -12,21 +13,21 @@ import (
 func newConnCtx(conn *Conn) *ConnCtx {
 	return &ConnCtx{
 		Conn:         conn,
-		CKey:         "",
-		SKey:         "",
+		CKey:         nil,
+		SKey:         nil,
 		LastPingTime: time.Now().Unix(),
 	}
 }
 
 // updateCKey 更新ConnCtx实例的CKey字段。
 // ckey: 要更新的CKey字符串。
-func (ctx *ConnCtx) updateCKey(ckey string) {
+func (ctx *ConnCtx) updateCKey(ckey []byte) {
 	ctx.CKey = ckey
 }
 
 // updateSKey 更新ConnCtx实例的SKey字段。
 // skey: 要更新的SKey字符串。
-func (ctx *ConnCtx) updateSKey(skey string) {
+func (ctx *ConnCtx) updateSKey(skey []byte) {
 	ctx.SKey = skey
 }
 
@@ -70,7 +71,7 @@ func (cm *ConnManager) Store(id string, conn *Conn) {
 // StoreCKey 更新指定设备的CKey。
 // id: 设备UID。
 // cKey: 要更新的CKey。
-func (cm *ConnManager) StoreCKey(id string, cKey string) {
+func (cm *ConnManager) StoreCKey(id string, cKey []byte) {
 	if value, ok := cm.deviceConnMap.Load(id); ok {
 		ctx := value.(*ConnCtx)
 		ctx.updateCKey(cKey)
@@ -80,7 +81,7 @@ func (cm *ConnManager) StoreCKey(id string, cKey string) {
 // StoreSKey 更新指定设备的SKey。
 // id: 设备UID。
 // sKey: 要更新的SKey。
-func (cm *ConnManager) StoreSKey(id string, sKey string) {
+func (cm *ConnManager) StoreSKey(id string, sKey []byte) {
 	if value, ok := cm.deviceConnMap.Load(id); ok {
 		ctx := value.(*ConnCtx)
 		ctx.updateSKey(sKey)
@@ -114,7 +115,11 @@ func (cm *ConnManager) Load(id string) (*Conn, bool) {
 // Ping 根据设备UID标记该设备连接为活跃。
 // id: 设备UID。
 // 返回值: 错误对象，如果设备未找到则返回错误。
-func (cm *ConnManager) Ping(id string) error {
+func (cm *ConnManager) Ping(id string, ts int64) error {
+	if time.Now().Unix()-ts > int64(cm.timeout/time.Second) {
+		return codec.Invalid_Ping_Frame
+	}
+
 	if value, ok := cm.deviceConnMap.Load(id); ok {
 		if connctx, ok := value.(*ConnCtx); ok {
 			connctx.updatePing()

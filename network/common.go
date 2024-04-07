@@ -15,9 +15,9 @@ type ConnCtx struct {
 	// real connection
 	Conn *Conn
 	// client encrypt key
-	CKey string
+	CKey []byte
 	// server encrypt key
-	SKey string
+	SKey []byte
 	// last ping time, update by ping command
 	LastPingTime int64
 }

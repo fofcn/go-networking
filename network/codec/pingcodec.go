@@ -5,6 +5,10 @@ import (
 	"errors"
 )
 
+var (
+	Invalid_Ping_Frame = errors.New("timeout frame")
+)
+
 type PingHeader struct {
 	Timestamp int64 // Timestamp
 	// Client's Connection ID，定义更新使用UUID

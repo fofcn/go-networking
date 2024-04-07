@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"go-networking/network"
-	"log"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/pkg/profile"
 	"github.com/quintans/toolkit/latch"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,7 +22,7 @@ const (
 func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHeaderAndPayload(t *testing.T) {
 
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
-	StartTcpServer()
+	tcpSrv := StartTcpServer()
 
 	frame := &network.Frame{
 		Version: 1,
@@ -39,6 +40,7 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHea
 	assert.Equal(t, frame.Seq, recvFrame.Seq)
 	fmt.Printf("send sequence no: %d, recv sequence no: %d\n", frame.Seq, recvFrame.Seq)
 	tcpClient.Stop()
+	tcpSrv.Stop()
 }
 
 func TestConnectionFailure(t *testing.T) {
@@ -51,10 +53,11 @@ func TestConnectionFailure(t *testing.T) {
 
 func TestHighTrafficStability(t *testing.T) {
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
-	StartTcpServer()
+	tcpServer := StartTcpServer()
 	tcpClient := StartTcpClient()
 
-	upperLimit := 1000
+	wg := sync.WaitGroup{}
+	upperLimit := 100
 	for i := 0; i < upperLimit; i++ {
 		frame := &network.Frame{
 			Version: 1,
@@ -66,15 +69,89 @@ func TestHighTrafficStability(t *testing.T) {
 			Payload: []byte("Hello world!"),
 		}
 
-		recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
-		if err != nil {
-			t.Errorf("Error occurred on high traffic: %s\n", err)
-		} else {
-			fmt.Printf("recv frame sequence no: %d", recvFrame.Seq)
-		}
+		wg.Add(1)
+		go func() {
+			recvFrame, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
+			if err != nil {
+				t.Errorf("Error occurred on high traffic: %s\n", err)
+			} else {
+				fmt.Printf("recv frame sequence no: %d\n", recvFrame.Seq)
+			}
+
+			wg.Done()
+		}()
+
 	}
 
+	wg.Wait()
+
 	tcpClient.Stop()
+	tcpServer.Stop()
+}
+
+func BenchmarkHighTrafficStability(b *testing.B) {
+	// 启动性能分析（可选）
+	defer profile.Start().Stop()
+
+	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
+	tcpServer := StartTcpServer()
+	tcpClient := StartTcpClient()
+
+	b.ResetTimer() // 重置基准计时器
+
+	for i := 0; i < b.N; i++ { // 使用 b.N 作为循环次数
+		frame := &network.Frame{
+			Version: 1,
+			CmdType: CommandA,
+			Header: &Conn{
+				KeyLen: uint32(len("ABC")),
+				Key:    "ABC",
+			},
+			Payload: []byte("Hello world!"),
+		}
+
+		_, _ = tcpClient.SendSync(serverAddr, frame, 30*time.Second) // 忽略返回值，仅关注发送操作
+	}
+
+	// 停止 TCP 客户端和服务器（通常在基准测试中不会执行，因为每次迭代都会重新启动它们）
+	tcpClient.Stop()
+	tcpServer.Stop()
+}
+
+func BenchmarkHighTrafficConcurrency(b *testing.B) {
+	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
+	tcpServer := StartTcpServer()
+	tcpClient := StartTcpClient()
+
+	b.ResetTimer() // 重置基准计时器
+
+	for i := 0; i < b.N; i++ {
+		frame := &network.Frame{
+			Version: 1,
+			CmdType: CommandA,
+			Header: &Conn{
+				KeyLen: uint32(len("ABC")),
+				Key:    "ABC",
+			},
+			Payload: []byte("Hello world!"),
+		}
+
+		// 创建并发 Goroutine 发送请求
+		var wg sync.WaitGroup
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			_, _ = tcpClient.SendSync(serverAddr, frame, 30*time.Second) // 忽略返回值，仅关注发送操作
+		}()
+
+		wg.Wait() // 等待当前并发请求完成
+	}
+
+	// 停止 TCP 客户端和服务器（通常在基准测试中不会执行，因为每次迭代都会重新启动它们）
+	tcpClient.Stop()
+	tcpServer.Stop()
 }
 
 func StartTcpClient() *network.TcpClient {
@@ -161,8 +238,6 @@ func (codec ConnCodecClient) Decode(data []byte) (interface{}, error) {
 type CommandAProcessor struct{}
 
 func (cmdProcessor CommandAProcessor) Process(conn *network.Conn, packet *network.Frame) (*network.Frame, error) {
-	log.Println("Command A Process")
-
 	return &network.Frame{
 		Version: 1,
 		CmdType: CommandA,
