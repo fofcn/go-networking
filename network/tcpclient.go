@@ -239,7 +239,7 @@ func (c *TcpClient) handleRequest(ctx context.Context, conn netpoll.Connection) 
 }
 
 func (c *TcpClient) closeConnectionCallback(conn netpoll.Connection) error {
-	log.Infof("[%v] connection closed\n", conn.RemoteAddr())
+	log.Infof("[Client][%v] connection closed\n", conn.RemoteAddr())
 	addr := conn.RemoteAddr()
 	conn.Close()
 	delete(c.hostConnTable, addr.String())

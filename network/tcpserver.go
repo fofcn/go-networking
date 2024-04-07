@@ -104,7 +104,7 @@ func prepare(connection netpoll.Connection) context.Context {
 }
 
 func close(connection netpoll.Connection) error {
-	log.Infof("[%v] connection closed\n", connection.RemoteAddr())
+	log.Infof("[Server][%v] connection closed\n", connection.RemoteAddr())
 	return nil
 }
 

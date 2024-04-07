@@ -21,6 +21,86 @@ const (
 	serverAddr = "127.0.0.1:8080"
 )
 
+// setUp 用于设置测试环境，启动服务器等。
+func setUp() (*network.TcpServer, *network.TcpClient) {
+	log.InitLogger()
+	tcpServer := StartTcpServer()
+	tcpClient := StartTcpClient()
+	return tcpServer, tcpClient
+}
+
+// tearDown 用于清理测试环境，关闭服务器和客户端连接。
+func tearDown(tcpServer *network.TcpServer, tcpClient *network.TcpClient) {
+	tcpClient.Stop()
+	tcpServer.Stop()
+}
+
+// BenchmarkClientServerConnection 测试单个客户端连接服务器并发送一条消息。
+func BenchmarkClientServerConnection(b *testing.B) {
+	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
+	tcpServer, tcpClient := setUp()
+	defer tearDown(tcpServer, tcpClient)
+
+	frame := &network.Frame{
+		Version: 1,
+		CmdType: CommandA,
+		Header: &Conn{
+			KeyLen: uint32(len("ABC")),
+			Key:    "ABC",
+		},
+		Payload: []byte("Hello world!"),
+	}
+
+	b.ResetTimer() // 重置计时器，开始基准测试
+
+	for i := 0; i < b.N; i++ {
+		_, err := tcpClient.SendSync(serverAddr, frame, 30*time.Second)
+		if err != nil {
+			b.Fatalf("Benchmark failed: %v", err)
+		}
+	}
+
+	b.StopTimer() // 停止计时器，基准测试结束
+}
+
+func BenchmarkClientServerConnectionConcurrent(b *testing.B) {
+	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
+	tcpServer, tcpClient := setUp()
+	defer tearDown(tcpServer, tcpClient)
+
+	frame := &network.Frame{
+		Version: 1,
+		CmdType: CommandA,
+		Header: &Conn{
+			KeyLen: uint32(len("ABC")),
+			Key:    "ABC",
+		},
+		Payload: []byte("Hello world!"),
+	}
+
+	b.ResetTimer() // 重置计时器，开始基准测试
+
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < b.N; i++ {
+		wg.Add(1)
+		go func() {
+			tmpClient := StartTcpClient()
+			_, err := tmpClient.SendSync(serverAddr, frame, 30*time.Second)
+			if err != nil {
+				b.Fatalf("Benchmark failed: %v", err)
+			}
+			tmpClient.Stop()
+			wg.Done()
+		}()
+
+	}
+
+	wg.Wait()
+
+	b.StopTimer() // 停止计时器，基准测试结束
+}
+
 func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHeaderAndPayload(t *testing.T) {
 
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
