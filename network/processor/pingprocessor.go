@@ -9,17 +9,23 @@ import (
 )
 
 type PingProcessor struct {
-	TcpServer *network.TcpServer
+	tcpSrv *network.TcpServer
+}
+
+func NewPingProcs(tcpSrv *network.TcpServer) *PingProcessor {
+	return &PingProcessor{
+		tcpSrv: tcpSrv,
+	}
 }
 
 func (pp *PingProcessor) Process(conn *network.Conn, frame *network.Frame) (*network.Frame, error) {
 	header := frame.Header.(*codec.PingHeader)
-	err := pp.TcpServer.CManager.Ping(header.Id, header.Timestamp)
+	err := pp.tcpSrv.CManager.Ping(header.Id, header.Timestamp)
 	if err != nil && errors.Is(err, codec.Invalid_Ping_Frame) {
 		log.Info("ignore this ping frame")
 		return nil, err
 	} else if err != nil {
-		pp.TcpServer.CManager.Delete(header.Id)
+		pp.tcpSrv.CManager.Delete(header.Id)
 		return nil, err
 	}
 

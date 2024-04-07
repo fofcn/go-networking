@@ -10,7 +10,11 @@ import (
 )
 
 type ConnProcessor struct {
-	TcpServer *network.TcpServer
+	tcpSrv *network.TcpServer
+}
+
+func NewConnProcs(tcpSrv *network.TcpServer) *ConnProcessor {
+	return &ConnProcessor{tcpSrv: tcpSrv}
 }
 
 // 实现连接建立
@@ -38,7 +42,7 @@ func (cp *ConnProcessor) Process(conn *network.Conn, frame *network.Frame) (*net
 
 	// 记录aesKey到连接上下文中，用于之后数据的加解密
 	// Store 将连接存储到设备连接映射中。
-	cp.TcpServer.CManager.Store(connID, conn, aesKey)
+	cp.tcpSrv.CManager.Store(connID, conn, aesKey)
 
 	// 准备回复客户端的数据包
 	respHeader := &codec.ConnAckHeader{

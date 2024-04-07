@@ -141,9 +141,9 @@ func startTcpServer() {
 		return
 	}
 
-	tcpServer.AddProcessor(network.CONN, &processor.ConnProcessor{TcpServer: tcpServer})
-	tcpServer.AddProcessor(network.PING, &processor.PingProcessor{TcpServer: tcpServer})
-	tcpServer.AddProcessor(network.LISTDIR, &processor.ListdireProcessor{TcpSrv: tcpServer})
+	tcpServer.AddProcessor(network.CONN, processor.NewConnProcs(tcpServer))
+	tcpServer.AddProcessor(network.PING, processor.NewPingProcs(tcpServer))
+	tcpServer.AddProcessor(network.LISTDIR, processor.NewListdireProcs(tcpServer))
 
 	err = tcpServer.Start()
 	if err != nil {
