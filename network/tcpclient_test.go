@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"go-networking/log"
 	"go-networking/network"
 	"runtime"
 	"sync"
@@ -53,9 +54,10 @@ func TestConnectionFailure(t *testing.T) {
 }
 
 func TestHighTrafficStability(t *testing.T) {
+	log.InitLogger()
 	runtime.GOMAXPROCS(32)
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
-	tcpServer := StartTcpServer()
+	_ = StartTcpServer()
 	tcpClient := StartTcpClient()
 
 	wg := sync.WaitGroup{}
@@ -87,8 +89,10 @@ func TestHighTrafficStability(t *testing.T) {
 
 	wg.Wait()
 
+	time.Sleep(5 * time.Second)
+
 	tcpClient.Stop()
-	tcpServer.Stop()
+	// tcpServer.Stop()
 }
 
 func BenchmarkHighTrafficStability(b *testing.B) {

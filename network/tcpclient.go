@@ -157,7 +157,7 @@ func (c *TcpClient) recreateConnectionIfNeeded(connSeq *HostConn, network string
 	if connSeq.conn.IsActive() {
 		return connSeq, nil
 	}
-
+	log.Infof("Recreating connection to %s", serverAddr)
 	// 关闭不活跃的连接并从表中移除
 	err := connSeq.conn.Close()
 	if err != nil {
