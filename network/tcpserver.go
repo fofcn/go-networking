@@ -6,6 +6,8 @@ import (
 	"errors"
 	"go-networking/log"
 	"io"
+	"net"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/netpoll"
@@ -25,13 +27,13 @@ type TcpServer struct {
 	pollerNum    int
 	connKeyTable map[string]*ConnCtx
 	CManager     *ConnManager
-}
-
-func (s *TcpServer) AddConnKey(Id string, connKey *ConnCtx) {
-	s.connKeyTable[Id] = connKey
+	mu           sync.Mutex // 用于保护map的并发安全
 }
 
 func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
+	if config == nil {
+		return nil, errors.New("config cannot be nil")
+	}
 	tcpServer := TcpServer{
 		processors:   make(map[CommandType]Processor),
 		interceptors: make([]RequestInterceptor, 0),
@@ -44,13 +46,11 @@ func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 
 func (s *TcpServer) Init() error {
 	log.Info("start tcp server")
-
 	s.config.Network = "tcp"
 	s.pollerNum = 2
-
 	netpoll.SetNumLoops(s.pollerNum)
-
-	address := s.config.Addr.Host + ":" + s.config.Port
+	// 更加直观的地址拼接方式
+	address := net.JoinHostPort(s.config.Addr, s.config.Port)
 	listener, err := netpoll.CreateListener(s.config.Network, address)
 	if err != nil {
 		return err
@@ -132,6 +132,7 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 		if err == io.EOF {
 			defer reader.Release()
 		}
+		return err
 	}
 
 	req, err := Decode(LVBasedCodec, data)
@@ -141,12 +142,14 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 
 	log.Infof("server recv frame sequence: %d", req.Seq)
 
+	s.mu.Lock() // 加锁保护map的并发访问
 	if len(s.interceptors) != 0 {
 		for _, interceptor := range s.interceptors {
 			// todo add client address
 			interceptor.OnRequest("", req)
 		}
 	}
+	s.mu.Unlock()
 
 	if processor, ok := s.processors[req.CmdType]; ok {
 		resp, err := processor.Process(&Conn{
@@ -155,12 +158,15 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 		if err != nil {
 			return err
 		}
+
+		s.mu.Lock() // 加锁保护map的并发访问
 		if len(s.interceptors) != 0 {
 			for _, interceptor := range s.interceptors {
 				// todo add client direction
 				interceptor.OnResponse("", req, resp)
 			}
 		}
+		s.mu.Unlock()
 
 		respData, err := Encode(LVBasedCodec, resp)
 		if err != nil {
@@ -181,4 +187,18 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 	}
 
 	return nil
+}
+
+func close(connection netpoll.Connection) error {
+	log.Infof("[Server][%v] connection closed\n", connection.RemoteAddr())
+	return nil
+}
+
+func connect(ctx context.Context, connection netpoll.Connection) context.Context {
+	log.Infof("[%v] connection established\n", connection.RemoteAddr())
+	connection.AddCloseCallback(func(conn netpoll.Connection) {
+		// 确保传入正确的connection对象给close函数
+		close(conn)
+	})
+	return ctx
 }
