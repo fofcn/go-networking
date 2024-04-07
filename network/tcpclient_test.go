@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go-networking/network"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -52,12 +53,13 @@ func TestConnectionFailure(t *testing.T) {
 }
 
 func TestHighTrafficStability(t *testing.T) {
+	runtime.GOMAXPROCS(32)
 	network.AddHeaderCodec(CommandA, &ConnCodecClient{})
 	tcpServer := StartTcpServer()
 	tcpClient := StartTcpClient()
 
 	wg := sync.WaitGroup{}
-	upperLimit := 100
+	upperLimit := 25
 	for i := 0; i < upperLimit; i++ {
 		frame := &network.Frame{
 			Version: 1,

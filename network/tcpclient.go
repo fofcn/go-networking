@@ -140,37 +140,57 @@ func (c *TcpClient) AddInterceptor(requestInterceptor RequestInterceptor) {
 }
 
 func (c *TcpClient) getOrCreateConnection(network string, serverAddr string, timeout time.Duration) (*HostConn, error) {
+
 	c.mux.Lock()
 	defer c.mux.Unlock()
+
 	connSeq, exists := c.hostConnTable[serverAddr]
 	if exists {
-		if connSeq.conn.IsActive() {
-			return connSeq, nil
-		} else {
-			err := connSeq.conn.Close()
-			log.Infof("connection was not active, close also occured error, please check the error: %s", err)
-			delete(c.hostConnTable, serverAddr)
-		}
+		return c.recreateConnectionIfNeeded(connSeq, network, serverAddr, timeout)
 	}
 
-	conn, err := c.createConnection(network, serverAddr, timeout)
+	return c.doCreateConnection(network, serverAddr, timeout)
+
+}
+
+func (c *TcpClient) recreateConnectionIfNeeded(connSeq *HostConn, network string, serverAddr string, timeout time.Duration) (*HostConn, error) {
+	if connSeq.conn.IsActive() {
+		return connSeq, nil
+	}
+
+	// 关闭不活跃的连接并从表中移除
+	err := connSeq.conn.Close()
+	if err != nil {
+		log.Errorf("Error closing connection: %s", err)
+	}
+	delete(c.hostConnTable, serverAddr)
+
+	return c.doCreateConnection(network, serverAddr, timeout)
+}
+
+func (c *TcpClient) doCreateConnection(network string, serverAddr string, timeout time.Duration) (*HostConn, error) {
+	// 尝试创建新连接
+	newConn, err := c.createConnection(network, serverAddr, timeout)
 	if err != nil {
 		return nil, err
 	}
 
-	if !conn.IsActive() {
-		return nil, errors.New("connection have not actived after created")
+	if !newConn.IsActive() {
+		return nil, errors.New("connection has not activated after creation")
 	}
 
-	conn.SetOnRequest(c.handleRequest)
+	newConn.SetOnRequest(c.handleRequest)
+	newConn.SetReadTimeout(timeout)
+	newConn.SetWriteTimeout(timeout)
+	newConn.SetIdleTimeout(timeout * 300)
 
-	connSeq = &HostConn{
-		conn:    conn,
+	newConnSeq := &HostConn{
+		conn:    newConn,
 		seqIncr: NewSafeIncrementer(),
 	}
-	c.hostConnTable[serverAddr] = connSeq
+	c.hostConnTable[serverAddr] = newConnSeq
 
-	return connSeq, nil
+	return newConnSeq, nil
 }
 
 func (c *TcpClient) createConnection(network string, serverAddr string, timeout time.Duration) (netpoll.Connection, error) {
