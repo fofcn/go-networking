@@ -10,7 +10,7 @@ import (
 // TestGetUserIdAndUsername is a unit test for GetUserIdAndUsername function.
 func TestGetUserIdAndUsername(t *testing.T) {
 	// Create a new gin context with mock claims
-	mockClaims := &CustomClaims{
+	mockClaims := &util.CustomClaims{
 		UserId:   123,
 		Username: "testuser",
 	}

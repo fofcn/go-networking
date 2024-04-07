@@ -14,17 +14,54 @@
 
 # SQL
 
-## INSERT
+# Table
+```sql
 
-## UPDATE
 
-## DELETE
+CREATE TABLE trade_user (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(20) NOT NULL,
+    email LONGTEXT,
+    age TINYINT UNSIGNED,
+    birthday DATETIME,
+    created_at DATETIME,
+    updated_at DATETIME,
+    PRIMARY KEY (id),
+    INDEX idx_name (name) 
+);
 
-## SELECT
+CREATE TABLE trade_order (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    order_no BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    total_amount BIGINT UNSIGNED NOT NULL,
+    paied_amount BIGINT UNSIGNED NOT NULL
+);
 
-### Basic
 
-##
+INSERT INTO trade_user (name, email, age, birthday, created_at, updated_at) VALUES
+('Alice', 'alice@example.com', 40, '1992-01-10 08:30:00', NOW(), NOW()),
+('Bob', 'bob@example.com', 35, '1987-05-20 14:45:00', NOW(), NOW()),
+('Charlie', 'charlie@example.com', 25, '1997-08-15 09:00:00', NOW(), NOW()),
+('Diana', 'diana@example.com', 28, '1994-04-16 17:30:00', NOW(), NOW()),
+('Eva', 'eva@example.com', 32, '1990-11-11 12:00:00', NOW(), NOW()),
+('Frank', 'frank@example.com', 40, '1982-12-03 19:15:00', NOW(), NOW());
+
+INSERT INTO trade_order (user_id, order_no, created_at, updated_at, total_amount, paied_amount) VALUES
+(1, 1, NOW(), NOW(), 2500, 2500),
+(2, 2, NOW(), NOW(), 4500, 4500),
+(3, 3, NOW(), NOW(), 3000, 1500),
+(4, 4, NOW(), NOW(), 1500, 1500),
+(5, 5, NOW(), NOW(), 5200, 5200),
+(6, 6, NOW(), NOW(), 1300, 1300);
+
+```
+
+# SELECT
+
+
 
 # Indexing
 

@@ -63,18 +63,22 @@ func (us *UserService) DoRegister(cmd *RegisterCmd) error {
 	// 查询数据库
 	var user User
 	err := us.db.Where("username = ?", cmd.Username).First(&user).Error
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Errorf("find user error, %v %v", cmd.Username, err)
 		return err
 	}
 
 	if user.ID != 0 {
-		log.Errorf("user could not be found, %v", cmd.Username)
-		return err
+		log.Errorf("use has already registerd, %v", cmd.Username)
+		return UserHasRegisteredErr
 	}
 
 	// 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(cmd.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Errorf("password format is curious. %v", err)
+		return PwdFmtIncorrect
+	}
 	return us.db.Create(&User{
 		Username: cmd.Username,
 		Password: string(hashedPassword),

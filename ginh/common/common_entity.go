@@ -2,7 +2,7 @@ package common
 
 type CommonResp struct {
 	Data    interface{} `json:"data"`
-	Message string      `json:"message"`
+	Message interface{} `json:"message"`
 }
 
 var NoDataSuccessResposne = CommonResp{
