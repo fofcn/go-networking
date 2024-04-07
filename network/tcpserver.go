@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"go-networking/log"
 	"io"
 	"time"
@@ -44,7 +43,7 @@ func NewTcpServer(config *TcpServerConfig) (*TcpServer, error) {
 }
 
 func (s *TcpServer) Init() error {
-	fmt.Println("start tcp server")
+	log.Info("start tcp server")
 
 	s.config.Network = "tcp"
 	s.pollerNum = 2
@@ -69,7 +68,7 @@ func (s *TcpServer) Init() error {
 	}
 
 	s.eventLoop = eventLoop
-	fmt.Println("started tcp server")
+	log.Info("started tcp server")
 	return nil
 
 }
@@ -85,7 +84,7 @@ func (s *TcpServer) Start() error {
 
 func (s *TcpServer) Stop() error {
 	log.Info("TCP Server stop")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err := s.eventLoop.Shutdown(ctx)
 	return err

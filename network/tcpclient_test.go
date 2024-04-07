@@ -46,7 +46,7 @@ func TestSendSyncShouldRecvSuccessResponseWhenConnectedServerAndSendFrameWitiHea
 func TestConnectionFailure(t *testing.T) {
 	tcpClient := StartTcpClient()
 	invalidServerAddr := "999.999.999.999:99999" // 这是一个无效的地址和端口
-	_, err := tcpClient.SendSync(invalidServerAddr, nil, 30*time.Second)
+	_, err := tcpClient.SendSync(invalidServerAddr, &network.Frame{}, 30*time.Second)
 	assert.NotNil(t, err)
 	tcpClient.Stop()
 }
