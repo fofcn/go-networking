@@ -11,11 +11,11 @@ import (
 // newConnCtx 创建一个新的ConnCtx实例。
 // conn: 表示连接的Conn对象。
 // 返回值: 初始化后的ConnCtx指针。
-func newConnCtx(conn *Conn) *ConnCtx {
+func newConnCtx(conn *Conn, key []byte) *ConnCtx {
 	return &ConnCtx{
 		Conn:         conn,
-		CKey:         nil,
-		SKey:         nil,
+		CKey:         key,
+		SKey:         key,
 		LastPingTime: time.Now().Unix(),
 	}
 }
@@ -62,8 +62,8 @@ func NewConnManager() *ConnManager {
 }
 
 // Store 将连接存储到设备连接映射中。
-func (cm *ConnManager) Store(id string, conn *Conn) {
-	cm.deviceConnMap.Store(id, newConnCtx(conn))
+func (cm *ConnManager) Store(id string, conn *Conn, key []byte) {
+	cm.deviceConnMap.Store(id, newConnCtx(conn, key))
 }
 
 // StoreCKey 更新指定设备的CKey。

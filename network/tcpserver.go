@@ -59,9 +59,9 @@ func (s *TcpServer) Init() error {
 
 	eventLoop, err := netpoll.NewEventLoop(
 		s.handle,
-		netpoll.WithOnPrepare(prepare),
-		netpoll.WithOnConnect(connect),
-		netpoll.WithReadTimeout(time.Second))
+		netpoll.WithOnPrepare(s.prepare),
+		netpoll.WithOnConnect(s.connect),
+		netpoll.WithReadTimeout(30*time.Second))
 	if err != nil {
 		listener.Close()
 		return err
@@ -99,18 +99,19 @@ func (s *TcpServer) AddInterceptor(requestInterceptor RequestInterceptor) {
 	s.interceptors = append(s.interceptors, requestInterceptor)
 }
 
-func prepare(connection netpoll.Connection) context.Context {
+func (s *TcpServer) prepare(connection netpoll.Connection) context.Context {
 	return context.Background()
 }
 
-func close(connection netpoll.Connection) error {
+func (s *TcpServer) close(connection netpoll.Connection) error {
 	log.Infof("[Server][%v] connection closed\n", connection.RemoteAddr())
 	return nil
 }
 
-func connect(ctx context.Context, connection netpoll.Connection) context.Context {
+func (s *TcpServer) connect(ctx context.Context, connection netpoll.Connection) context.Context {
 	log.Infof("[%v] connection established\n", connection.RemoteAddr())
-	connection.AddCloseCallback(close)
+
+	connection.AddCloseCallback(s.close)
 	return ctx
 }
 
