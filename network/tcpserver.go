@@ -50,7 +50,7 @@ func (s *TcpServer) Init() error {
 	s.pollerNum = 2
 	netpoll.SetNumLoops(s.pollerNum)
 	// 更加直观的地址拼接方式
-	address := net.JoinHostPort(s.config.Addr, s.config.Port)
+	address := net.JoinHostPort(s.config.Addr.Host, s.config.Addr.Port)
 	listener, err := netpoll.CreateListener(s.config.Network, address)
 	if err != nil {
 		return err
@@ -187,18 +187,4 @@ func (s *TcpServer) handle(ctx context.Context, connection netpoll.Connection) e
 	}
 
 	return nil
-}
-
-func close(connection netpoll.Connection) error {
-	log.Infof("[Server][%v] connection closed\n", connection.RemoteAddr())
-	return nil
-}
-
-func connect(ctx context.Context, connection netpoll.Connection) context.Context {
-	log.Infof("[%v] connection established\n", connection.RemoteAddr())
-	connection.AddCloseCallback(func(conn netpoll.Connection) {
-		// 确保传入正确的connection对象给close函数
-		close(conn)
-	})
-	return ctx
 }
