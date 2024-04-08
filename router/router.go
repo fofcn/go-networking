@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-networking/ginh/file"
 	"go-networking/ginh/global"
+	"go-networking/ginh/helloworld"
 	"go-networking/ginh/user"
 	"go-networking/log"
 	"time"
@@ -50,5 +51,6 @@ func InitRouter(r *gin.Engine) {
 
 	user.InitRouter(publicGroup, protectGroup)
 	file.InitRouter(protectGroup)
+	helloworld.InitRouter(r)
 	log.Info("Init router completed")
 }
