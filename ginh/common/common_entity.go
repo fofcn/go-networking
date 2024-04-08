@@ -13,3 +13,8 @@ var NoDataFailureResposne = CommonResp{
 	Data:    "Failed",
 	Message: "Failed",
 }
+
+type Pagenation struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+}

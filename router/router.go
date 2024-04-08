@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"go-networking/ginh/file"
 	"go-networking/ginh/global"
 	"go-networking/ginh/user"
 	"go-networking/log"
@@ -48,7 +49,6 @@ func InitRouter(r *gin.Engine) {
 	protectGroup.Use(user.AuthMiddleware())
 
 	user.InitRouter(publicGroup, protectGroup)
-	log.Info("Init router completed")
-
+	file.InitRouter(protectGroup)
 	log.Info("Init router completed")
 }

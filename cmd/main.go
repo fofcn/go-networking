@@ -5,6 +5,7 @@ import (
 	"go-networking/config"
 	"go-networking/db"
 	"go-networking/docs"
+	"go-networking/ginh/file"
 	"go-networking/ginh/user"
 	"go-networking/infra/model"
 	"go-networking/log"
@@ -169,6 +170,7 @@ func startHttpServer() {
 
 	db.InitDB()
 	user.InitAutoMigrate(db.GetDB())
+	file.InitFileMigrate(db.GetDB())
 
 	server := &http.Server{
 		Addr:           ":8080",
