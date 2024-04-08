@@ -1,6 +1,10 @@
 package file
 
-import "gorm.io/gorm"
+import (
+	"go-networking/log"
+
+	"gorm.io/gorm"
+)
 
 type FileService struct {
 	db *gorm.DB
@@ -22,11 +26,11 @@ func (f *FileService) GetFile(fileId uint) (*FileInfo, error) {
 }
 
 func (f *FileService) ListFile(cmd *ListFileCmd, userId uint) (*ListFilePageDto, error) {
-	var files []*FileInfo
-	err := f.db.Where("user_id = ? and file_id = ?", userId, cmd.FileId).Offset((cmd.Page - 1) * cmd.PageSize).Order("id DESC").Find(&files).Error
+	files, err := f.queryFileList(f.db, userId, cmd.FileId, cmd.Page, cmd.PageSize)
 	if err != nil {
 		return nil, err
 	}
+
 	var dtos []*ListFileDto
 	for _, file := range files {
 		dtos = append(dtos, &ListFileDto{
@@ -41,6 +45,25 @@ func (f *FileService) ListFile(cmd *ListFileCmd, userId uint) (*ListFilePageDto,
 		Pagenation: cmd.Pagenation,
 		List:       dtos,
 	}, nil
+}
+
+func (f *FileService) queryFileList(db *gorm.DB, userId uint, fileId uint, page int, pageSize int) ([]*FileInfo, error) {
+	var files []*FileInfo
+
+	query := db.Where("user_id = ?", userId).Offset((page - 1) * pageSize).Order("id DESC").Find(&files)
+
+	// 如果fileId不为0，添加额外的查询条件
+	if fileId != 0 {
+		query = query.Where("file_id = ?", fileId)
+	}
+
+	if err := query.Error; err != nil {
+		// 更细致的错误处理，可以考虑添加日志记录等
+		log.Errorf("query file list error, %v", err)
+		return nil, err
+	}
+
+	return files, nil
 }
 
 func (f *FileService) UploadFile(userId uint, parentId uint, fileName string, contentType uint8, orgFilename string) (*FileInfo, error) {

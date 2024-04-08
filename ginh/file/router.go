@@ -19,11 +19,16 @@ func InitRouter(protect *gin.RouterGroup) {
 func ListFile(c *gin.Context, db *gorm.DB) {
 	page := c.Param("page")
 	pageSize := c.Param("page_size")
+	fileId := c.Param("file_id")
+
 	if len(page) == 0 {
 		page = "1"
 	}
 	if len(pageSize) == 0 {
 		pageSize = "10"
+	}
+	if len(fileId) == 0 {
+		fileId = "0"
 	}
 	service := NewFileService(db)
 	cmd := &ListFileCmd{
@@ -31,6 +36,7 @@ func ListFile(c *gin.Context, db *gorm.DB) {
 			Page:     util.StringToInt(page),
 			PageSize: util.StringToInt(pageSize),
 		},
+		FileId: util.StringToUint(fileId),
 	}
 
 	service.ListFile(cmd, user.GetUserId(c))
