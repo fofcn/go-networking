@@ -5,6 +5,7 @@ import (
 	"go-networking/ginh/common"
 	"go-networking/ginh/user"
 	"go-networking/ginh/util"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -39,11 +40,13 @@ func ListFile(c *gin.Context, db *gorm.DB) {
 		FileId: util.StringToUint(fileId),
 	}
 
-	service.ListFile(cmd, user.GetUserId(c))
+	dto, err := service.ListFile(cmd, user.GetUserId(c))
+	if err != nil {
+		c.JSON(http.StatusNoContent, common.NoDataFailureResposne)
+		return
+	}
 
-	var files []FileInfo
-	db.Find(&files)
-	c.JSON(200, files)
+	c.JSON(http.StatusOK, common.NewCommonResp(dto, ""))
 }
 
 func GetFile(c *gin.Context, db *gorm.DB) {

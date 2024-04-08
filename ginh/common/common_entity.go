@@ -14,6 +14,13 @@ var NoDataFailureResposne = CommonResp{
 	Message: "Failed",
 }
 
+func NewCommonResp(data interface{}, message interface{}) CommonResp {
+	return CommonResp{
+		Data:    data,
+		Message: message,
+	}
+}
+
 type Pagenation struct {
 	Page     int `json:"page"`
 	PageSize int `json:"page_size"`
