@@ -15,7 +15,7 @@ type FileInfo struct {
 	UserId        uint   `gorm:"index;not null"`
 	ParentId      uint   `gorm:"index;not null"`
 	OrgFilename   string `gorm:"size:255;not null"`
-	Fileame       string `gorm:"size:255;not null"`
+	Filename      string `gorm:"size:255;not null"`
 	FileType      uint8  `gorm:"not null"`
 	ContentType   uint8  `gorm:"not null"`
 	Deleted       uint8  `gorm:"not null"`

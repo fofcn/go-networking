@@ -2,6 +2,7 @@ package file
 
 import (
 	"go-networking/log"
+	"go-networking/network/util"
 
 	"gorm.io/gorm"
 )
@@ -35,7 +36,7 @@ func (f *FileService) ListFile(cmd *ListFileCmd, userId uint) (*ListFilePageDto,
 	for _, file := range files {
 		dtos = append(dtos, &ListFileDto{
 			FileId:      file.ID,
-			FileName:    file.Fileame,
+			FileName:    file.Filename,
 			OrgFilename: file.OrgFilename,
 			ContentType: file.ContentType,
 		})
@@ -66,7 +67,7 @@ func (f *FileService) queryFileList(db *gorm.DB, userId uint, fileId uint, page 
 	return files, nil
 }
 
-func (f *FileService) UploadFile(userId uint, parentId uint, fileName string, contentType uint8, orgFilename string) (*FileInfo, error) {
+func (f *FileService) UploadFile(cmd *UploadFileCmd, userId uint) (*FileInfo, error) {
 	// file := &FileInfo{
 	// 	UserId:      userId,
 	// 	ParentId:    parentId,
@@ -77,5 +78,27 @@ func (f *FileService) UploadFile(userId uint, parentId uint, fileName string, co
 	// }
 
 	// return file, f.db.Create(file).Error
+	fileinfo := &FileInfo{
+		UserId:      userId,
+		ParentId:    cmd.ParentId,
+		Filename:    util.GetUUIDNoDash(),
+		ContentType: cmd.ContentType,
+		OrgFilename: cmd.Filename,
+		FileType:    0,
+	}
+	tx := f.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+	if err := tx.Error; err != nil {
+		return nil, err
+	}
+	if err := tx.Create(fileinfo).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	tx.Commit()
 	return nil, nil
 }

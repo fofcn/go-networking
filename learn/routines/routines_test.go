@@ -3,6 +3,7 @@ package routines_test
 import (
 	"context"
 	"fmt"
+	"math"
 	"reflect"
 	"runtime"
 	"sync"
@@ -165,4 +166,13 @@ func TestRoutine_ShouldStop_WhenSendCancelSignal(t *testing.T) {
 	ch <- true
 	// 给协程留一点时间处理信号
 	time.Sleep(time.Second * 2)
+}
+
+func TestRoutine_ShouldBeKilled_WhenTooManyChannelsAreCreated(t *testing.T) {
+	for i := 0; i < math.MaxInt64; i++ {
+		go func() {
+			println("Hello, goroutine!")
+			time.Sleep(1000 * time.Second)
+		}()
+	}
 }

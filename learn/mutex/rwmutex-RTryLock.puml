@@ -1,0 +1,22 @@
+@startuml
+
+(*) --> "开始"
+--> "读取当前readerCount值至变量'c'"
+
+If "readerCount < 0" then
+ -->[是] "返回false"
+ --> "结束"
+else
+ -->[否] "尝试使用CompareAndSwap(c, c + 1)增加readerCount"
+endif
+
+If "CompareAndSwap执行成功" then
+ -->[是] "返回true"
+ --> "结束"
+else
+ -->[否] "失败，重新尝试获取读锁"
+ --> "读取当前readerCount值至变量'c'"
+endif
+
+"结束" --> (*)
+@enduml
