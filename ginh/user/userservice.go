@@ -10,6 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type UserServiceI interface {
+	DoLogin(username string, password string) (string, error)
+	DoRegister(cmd *RegisterCmd) error
+}
+
 type UserService struct {
 	db *gorm.DB
 }

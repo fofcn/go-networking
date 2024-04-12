@@ -7,6 +7,11 @@ import (
 	"gorm.io/gorm"
 )
 
+type FileServiceI interface {
+	ListFile(cmd *ListFileCmd, userId uint) (*ListFilePageDto, error)
+	GetFile(fileId uint) (*FileInfo, error)
+}
+
 type FileService struct {
 	db *gorm.DB
 }

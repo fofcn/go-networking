@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"go-networking/config"
 	"go-networking/db"
 	"go-networking/docs"
@@ -47,6 +48,8 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	log.InitLogger()
 
+	insertOrderData()
+
 	go startTcpServer()
 
 	// tcpServer.Stop()
@@ -58,6 +61,53 @@ func main() {
 
 	startHttpServer()
 
+}
+
+func insertOrderData() {
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		DSN: "root:example@tcp(127.0.0.1:3306)/trade_order?charset=utf8&parseTime=True&loc=Local", // DSN data source name
+		// DefaultStringSize:         65535,                                                                                // string 类型字段的默认长度
+		DisableDatetimePrecision:  true,  // 禁用 datetime 精度，MySQL 5.6 之前的数据库不支持
+		DontSupportRenameIndex:    true,  // 重命名索引时采用删除并新建的方式，MySQL 5.7 之前的数据库和 MariaDB 不支持重命名索引
+		DontSupportRenameColumn:   true,  // 用 `change` 重命名列，MySQL 8 之前的数据库和 MariaDB 不支持重命名列
+		SkipInitializeWithVersion: false, // 根据当前 MySQL 版本自动配置
+	}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent), // Silent SQL logging
+	})
+	if err != nil {
+		log.Error("connect db errr")
+		println("connect db errr")
+		return
+	}
+	wg := sync.WaitGroup{}
+	for i := 1; i <= 500000; i += 200 {
+		wg.Add(1)
+
+		go func(start uint) {
+			defer wg.Done()
+
+			orders := make([]model.TradeOrderModel, 0, 200)
+
+			// Create 200 orders for the batch
+			for j := start; j < start+200 && j <= 500000; j++ {
+				order := model.TradeOrderModel{
+					UserId:      j,
+					OrderNo:     j,
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
+					TotalAmount: uint(j),
+					PaiedAmount: uint(j),
+				}
+				orders = append(orders, order)
+			}
+
+			db.Create(&orders)
+			fmt.Printf("[println]created new orders from user id %d to %d\n", start, start+199)
+		}(uint(i))
+	}
+
+	wg.Wait()
+	fmt.Println("[println]Finished creating orders for all users")
 }
 
 func insertTestData() {

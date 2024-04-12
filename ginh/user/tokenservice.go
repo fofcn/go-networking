@@ -6,6 +6,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type TokenServiceI interface {
+	GenerateToken(userid uint, username string) (string, error)
+}
+
 type TokenService struct {
 }
 
